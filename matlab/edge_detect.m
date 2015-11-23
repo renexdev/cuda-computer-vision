@@ -1,12 +1,11 @@
 % close all;
 % clear all;
-function edges = edge_detect(filename)
+function edges = edge_detect(filename, low_threshold, high_threshold, sigma)
     image = imread(filename);
     image_bw = double(rgb2gray(image));
     [height, width] = size(image_bw);
 
-    sigma = 3;
-    k = 3;
+    k = 4;
     h = [];
     for i = 1:2*k + 1
         for j = 1:2*k + 1
@@ -37,11 +36,11 @@ function edges = edge_detect(filename)
             is_horizontal_max = G(y, x) > G(y, x + 1) && G(y, x) > G(y, x - 1);
             diagonal_check = ~vertical_check && ~horizontal_check;
             is_diagonal_max = G(y, x) > G(y + 1, x + 1) && G(y, x) > G(y - 1, x - 1);
-            threshold_condition = G(y, x) > 40;
+            threshold_condition = G(y, x) > high_threshold;
             if (((vertical_check && is_vertical_max) || (horizontal_check && is_horizontal_max) || (diagonal_check && is_diagonal_max)) && threshold_condition)
                 for i = -2:2
                     for j = -2:2
-                        if (G(y + i, x + j) > 20)
+                        if (G(y + i, x + j) > low_threshold)
                             edges(y, x) = 1;
                             edges(y + i, x + j) = 1;
                         end
