@@ -1,5 +1,10 @@
 #include <stdio.h>
 #include <sys/time.h>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+
+using namespace cv;
 
 
 __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int width, int height, int threshold) {
@@ -28,12 +33,33 @@ __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int 
     }
 }
 
-int main() {
-    int x[9] = {1, 1, 1, 0, 0, 0, 0, 0, 0};
-    int y[9] = {0, 0, 0, 0, 0, 0, 1, 1, 1};
-    int width = 3, height = 3;
-    int threshold = 3;
+double serial_difference_filter(int *difference, int *edges_1, int *edges_2, int width, int height, int threshold) {
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            difference[y * width + x] = 0;
+            if (edges_1[y * width + x] != edges_2[y * width + x]) {
+                difference[y * width + x] = 1;
+                for (int x_apron = -threshold; x_apron <= threshold; x_apron++) {
+                    for (int y_apron = -threshold; y_apron <= threshold; y_apron++) {
+                        if (x + x_apron > 0 && y + y_apron > 0 && x + x_apron < width && y + y_apron < height) {
+                            if (edges_1[(y + y_apron) * width + x + x_apron] == edges_2[y * width + x]) {
+                                difference[y * width + x] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    gettimeofday(&tv2, NULL);
+    double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
+    printf("Serial difference filter execution time: %f seconds\n", time_spent);
+    return time_spent;
+}
 
+void motion_track(int *output, int *edges_1, int *edges_2, int width, int height, int threshold) {
     // Allocate space on device
     int *dev_edges_1, *dev_edges_2, *dev_out;
     cudaMalloc(&dev_out, width*height*sizeof(int));
@@ -41,14 +67,23 @@ int main() {
     cudaMalloc(&dev_edges_2, width*height*sizeof(int));
 
     // Copy host arrays to device
-    cudaMemcpy(dev_edges_1, x, width*height*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_edges_2, y, width*height*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice);
+
+    // Allocate space on host for output arrays
+    int *serial_output = (int *)malloc(width * height * sizeof(int));
+
+    double serial_time_spent = serial_difference_filter(serial_output, edges_1, edges_2, width, height, threshold);
+
+    struct timeval tv1, tv2;
+    gettimeofday(&tv1, NULL);
 
     difference_filter<<<height, width>>>(dev_out, dev_edges_1, dev_edges_2, width, height, threshold);
+    cudaMemcpy(output, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost);
 
-    // Copy device result to host
-    static int output[10000];
-    cudaMemcpy(output, dev_out, width*height*sizeof(int), cudaMemcpyDeviceToHost);
+    gettimeofday(&tv2, NULL);
+    double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
+    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
 
     // Responsible programmer
     cudaFree(dev_out);
@@ -56,6 +91,23 @@ int main() {
     cudaFree(dev_edges_2);
 
     for (int i = 0; i < width*height; i++) {
-        printf("i %d\n", output[i]);
+        if (serial_output[i] != output[i]) {
+            printf("Error! Serial and parallel computation results are inconsistent: %d, %d\n", serial_output[i], output[i]);
+        }
     }
+    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent);
+}
+
+int main() {
+    // Load external image into array
+    Mat image = imread("../images/nvidia_1000_1000.jpg", 0);
+    int *x = (int *)malloc(image.cols * image.rows * sizeof(int));
+    int *out = (int *)malloc(100000000 * sizeof(int));
+    for (int i = 0; i < image.rows; i++) {
+        for (int j = 0; j < image.cols; j++) {
+            x[i * image.rows + j] = image.at<uchar>(i, j);
+        }
+    }
+    int threshold = 3;
+    motion_track(out, x, x, image.rows, image.cols, threshold);
 }
