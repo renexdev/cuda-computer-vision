@@ -14,6 +14,48 @@ using namespace cv;
 #define TY 8
 
 
+void spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
+	int horizontal_block_size = width/horizontal_divisions;
+	int vertical_block_size = height/vertical_divisions;
+	int block_size = horizontal_block_size * vertical_block_size;
+	
+	const int scaling_factor = 1000; // Used to linearly scale density map to units millipixels/pixels^2 (if that makes any sense?)
+	
+	for (int block_x_index = 0; block_x_index < horizontal_divisions; block_x_index++) {
+		for (int block_y_index = 0; block_y_index < vertical_divisions; block_y_index++) {
+			int num_differences = 0;
+			for (int x = (block_x_index - 1) * horizontal_block_size; x < block_x_index * horizontal_block_size; x++) {
+				for (int y = (block_y_index - 1) * vertical_block_size; y < block_y_index * vertical_block_size; y++) {
+					if (x > 0 && y > 0 && x < width && y < height && difference[y * width + x] == 255) {
+						num_differences++;
+					}
+				}
+			}
+			density_map[block_y_index * horizontal_divisions + block_x_index] = scaling_factor*num_differences/(double)block_size;
+		}
+	}
+}
+
+void motion_area_estimate(int *motion_area, double *density_map, int width, int height, int horizontal_divisions, int vertical_divisions, double threshold) {
+	int horizontal_block_size = width/horizontal_divisions;
+	int vertical_block_size = height/vertical_divisions;
+	
+	for (int init_i = 0; init_i < width * height; init_i++) {
+		motion_area[init_i] = 0;
+	}
+	for (int i = 0; i < horizontal_divisions * vertical_divisions; i++) {
+		if (density_map[i] >= threshold) {
+			int r = i/horizontal_divisions;
+			int c = i - r*horizontal_divisions;
+			for (int x = c * horizontal_block_size; x < (c + 1) * horizontal_block_size; x++) {
+				for (int y = r * vertical_block_size; y < (r + 1) * vertical_block_size; y++) {
+					motion_area[y*width + x] = 255;
+				}
+			}
+		}
+	}
+}
+
 __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int width, int height, int threshold) {
     // Note: width should correspond to width of dev_out, edges_1, and edges_2; same for height
 	const int r = blockIdx.y * blockDim.y + threadIdx.y;
@@ -146,15 +188,25 @@ int main() {
 	edge_detect(edges_1, gaussian_out_1, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
 	edge_detect(edges_2, gaussian_out_2, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
 
-	static int *out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
+	static int *difference = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	int threshold = 5;
-    motion_track(out, edges_1, edges_2, sobel_out_width, sobel_out_height, threshold);
+    motion_track(difference, edges_1, edges_2, sobel_out_width, sobel_out_height, threshold);
+    
+    int horizontal_divisions = 5, vertical_divisions = 3;
+    double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
+    spatial_difference_density_map(density_map, difference, sobel_out_width, sobel_out_height, horizontal_divisions, vertical_divisions);
+    int *motion_area = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
+    motion_area_estimate(motion_area, density_map, sobel_out_width, sobel_out_height, horizontal_divisions, vertical_divisions, 5.0);
     
     // Write to disk
 	Mat edges_image_1(sobel_out_height, sobel_out_width, CV_32SC1, edges_1);
 	Mat edges_image_2(sobel_out_height, sobel_out_width, CV_32SC1, edges_2);
-	Mat difference_image(sobel_out_height, sobel_out_width, CV_32SC1, out);
+	Mat difference_image(sobel_out_height, sobel_out_width, CV_32SC1, difference);
+	Mat motion_area_image(sobel_out_height, sobel_out_width, CV_32SC1, motion_area);
 	imwrite("edges_1.jpg", edges_image_1);
 	imwrite("edges_2.jpg", edges_image_2);
 	imwrite("difference.jpg", difference_image);
+	imwrite("motion.jpg", motion_area_image);
+	
+	return 0;
 }
