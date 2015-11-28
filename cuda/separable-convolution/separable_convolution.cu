@@ -3,6 +3,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
+#include "separable_convolution.h"
 
 using namespace cv;
 
@@ -155,29 +156,4 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
         }
     }
     printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
-}
-
-int main() {
-    // Load external image into array
-    Mat image = imread("nvidia_1000_1000.jpg", 0);
-    int *x = (int *)malloc(image.cols * image.rows * sizeof(int));
-    int *out = (int *)malloc(100000000 * sizeof(int));
-    for (int i = 0; i < image.rows; i++) {
-        for (int j = 0; j < image.cols; j++) {
-            x[i * image.rows + j] = image.at<uchar>(i, j);
-        }
-    }
-
-    // Gaussian filter
-    int horizontal_filter[3] = {1, 2, 1};
-    int vertical_filter[3] = {1, 2, 1};
-    int kernel_size = 3;
-    double constant_scalar = 1.0/16.0;
-    separable_convolve(out, x, image.cols, image.rows, horizontal_filter, vertical_filter, kernel_size, constant_scalar);
-
-    // Write to disk
-    Mat m(image.rows + kernel_size - 1, image.cols + kernel_size - 1, CV_32SC1, out);
-    imwrite("temp.jpg", m);
-
-    return 0;
 }
