@@ -4,3 +4,6 @@ HEADER_FILES = ../separable-convolution/separable_convolution.cu
 
 edge_detect: edge_detect.cu
 	$(NVCC) $(NVCC_FLAGS) $^ -o $@ $(HEADER_FILES)
+
+clean:
+	rm edge_detect
