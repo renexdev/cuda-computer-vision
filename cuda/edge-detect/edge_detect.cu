@@ -143,14 +143,14 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	dim3 grid_size = dim3(bx, by);
 	
 	// Horizontal direction
-	printf("Starting horizontal partial differentiation.\n");
+	printf("=====HORIZONTAL PARTIAL DIFFERENTIATION=====\n");
 	int gx_horizontal[3] = {1, 0, -1};
 	int gx_vertical[3] = {1, 2, 1};
 	static int *gx_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	separable_convolve(gx_out, image, sobel_out_width, sobel_out_height, gx_horizontal, gx_vertical, 3, 1);
 	
 	// Vertical direction
-	printf("Starting vertical partial differentiation.\n");
+	printf("=====VERTICAL PARTIAL DIFFERENTIATION=====\n");
 	int gy_horizontal[3] = {1, 2, 1};
 	int gy_vertical[3] = {1, 0, -1};
 	static int *gy_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
@@ -173,7 +173,7 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice);
 	
 	// Serial comparison
-	printf("Starting thresholding and non-maximum suppression.\n");
+	printf("=====THRESHOLDING AND NON-MAXIMUM SUPPRESSION=====\n");
 	double serial_computation_time = serial_thresholding_and_suppression(serial_edges, sobel_out_width, sobel_out_height, gx_out, gy_out, high_threshold, low_threshold);
 	
 	// Parallelization
@@ -191,40 +191,4 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	cudaFree(dev_edges);
 	cudaFree(dev_gx);
 	cudaFree(dev_gy);
-}
-
-int main() {
-    // Load external image into array
-    Mat image = imread("../images/nyc.jpg", 0);
-    int *x = (int *)malloc(image.cols * image.rows * sizeof(int));
-    static int *gaussian_out;
-    gaussian_out = (int *)malloc((image.rows * image.cols + 10) * sizeof(int));  // TODO: make this more precise
-    for (int i = 0; i < image.rows; i++) {
-        for (int j = 0; j < image.cols; j++) {
-            x[i * image.cols + j] = image.at<uchar>(i, j);
-        }
-    }
-
-    // Gaussian filter
-    printf("Starting Gaussian filter.\n");
-    int horizontal_filter[3] = {1, 2, 1};
-    int vertical_filter[3] = {1, 2, 1};
-    int kernel_size = 3;
-    double constant_scalar = 1.0/16.0;
-    separable_convolve(gaussian_out, x, image.cols, image.rows, horizontal_filter, vertical_filter, kernel_size, constant_scalar);
-    int gaussian_out_width = image.cols + kernel_size - 1;
-    int gaussian_out_height = image.rows + kernel_size - 1;
-    
-    int sobel_out_width = gaussian_out_width + kernel_size - 1;
-	int sobel_out_height = gaussian_out_height + kernel_size - 1;
-    static int *edges = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-    edge_detect(edges, gaussian_out, gaussian_out_width, gaussian_out_height, 130, 100);
-
-    // Write to disk
-    Mat gaussian(gaussian_out_height, gaussian_out_width, CV_32SC1, gaussian_out);
-    Mat edges_image(sobel_out_height, gaussian_out_width + 2, CV_32SC1, edges);
-    imwrite("gaussian.jpg", gaussian);
-    imwrite("temp.jpg", edges_image);
-
-    return 0;
 }
