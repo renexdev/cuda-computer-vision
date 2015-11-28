@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <sys/time.h>
+#include <cuda_runtime.h>
+#include <helper_cuda.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
@@ -7,12 +9,15 @@
 
 using namespace cv;
 
+#define TX 16
+#define TY 16
+
 
 __global__ void horizontal_convolve(int *d_out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
-    const int r = blockIdx.x;
-    const int c = threadIdx.x;
-    const int i = r * blockDim.x + c;
-
+    const int r = blockIdx.y * blockDim.y + threadIdx.y;
+    const int c = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = r * (x_width + h_width - 1) + c;
+    
     int sum = 0;
     for (int j = 0; j < h_width; j++) {
         int p = x_width*r + c - j;
@@ -25,9 +30,9 @@ __global__ void horizontal_convolve(int *d_out, int *x, int *h, int x_width, int
 }
 
 __global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x_height, int h_width, int h_height, double constant_scalar) {
-    const int r = blockIdx.x;
-    const int c = threadIdx.x;
-    const int i = r * blockDim.x + c;
+	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+	const int c = blockIdx.x * blockDim.x + threadIdx.x;
+	const int i = r * x_width + c;
 
     int sum = 0;
     for (int j = 0; j < h_height; j++) {
@@ -100,11 +105,11 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
     int vertical_filter_height = kernel_size;
 
     // Allocate space for host and device arrays
-    int *dev_horizontal_out, *dev_vertical_out;  // Results of the horizontal and vertical convolutions on the input array
-    int *dev_horizontal_filter, *dev_vertical_filter, *dev_x;  // Horizontal filter, vertical filter, and input array
+    static int *dev_horizontal_out, *dev_vertical_out;  // Results of the horizontal and vertical convolutions on the input array
+    static int *dev_horizontal_filter, *dev_vertical_filter, *dev_x;  // Horizontal filter, vertical filter, and input array
     //int *output = (int *)malloc((x_width * x_height + horizontal_filter_width + vertical_filter_height) * sizeof(int));
     //int *serial_output = (int *)malloc((x_width * x_height + horizontal_filter_width + vertical_filter_height) * sizeof(int));
-    static int serial_output[10000000];
+    static int serial_output[170000000];
 
     // Horizontal filter, followed by vertical filter
     int horizontal_convolution_width = x_width + horizontal_filter_width - 1;
@@ -113,29 +118,39 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
     int vertical_convolution_height = horizontal_convolution_height + vertical_filter_height - 1;
 
     // Allocate space for horizontal result, vertical result, horizontal filter, vertical filter, and input
-    cudaMalloc(&dev_horizontal_out, horizontal_convolution_width*horizontal_convolution_height*sizeof(int));
-    cudaMalloc(&dev_vertical_out, vertical_convolution_width*vertical_convolution_height*sizeof(int));
-    cudaMalloc(&dev_horizontal_filter, horizontal_filter_width*sizeof(int));
-    cudaMalloc(&dev_vertical_filter, vertical_filter_height*sizeof(int));
-    cudaMalloc(&dev_x, x_width*x_height*sizeof(int));
+    checkCudaErrors(cudaMalloc(&dev_horizontal_out, horizontal_convolution_width*horizontal_convolution_height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_vertical_out, vertical_convolution_width*vertical_convolution_height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_horizontal_filter, horizontal_filter_width*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_vertical_filter, vertical_filter_height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_x, x_width*x_height*sizeof(int)));
 
     // Copy host arrays to device
-    cudaMemcpy(dev_horizontal_filter, horizontal_filter, horizontal_filter_width*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_vertical_filter, vertical_filter, vertical_filter_height*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_x, x, x_width*x_height*sizeof(int), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaMemcpy(dev_horizontal_filter, horizontal_filter, horizontal_filter_width*sizeof(int), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(dev_vertical_filter, vertical_filter, vertical_filter_height*sizeof(int), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(dev_x, x, x_width*x_height*sizeof(int), cudaMemcpyHostToDevice));
 
     // Start with a serial convolution for comparison
     // double serial_computation_time = serial_convolve(serial_output, x, filter, x_width, x_height, horizontal_filter_width, vertical_filter_height);
     double serial_computation_time = serial_separable_convolve(serial_output, x, horizontal_filter, vertical_filter, x_width, x_height, horizontal_filter_width, vertical_filter_height, constant_scalar);
 
-    // Start a timer and do the two convolutions
+    // Initialize grid
+    dim3 block_size(TX, TY);
+	int bx_horizontal = (horizontal_convolution_width)/block_size.x;
+	int by_horizontal = (horizontal_convolution_height)/block_size.y;
+	dim3 grid_size_horizontal = dim3(bx_horizontal, by_horizontal);
+	int bx_vertical = (vertical_convolution_width)/block_size.x;
+	int by_vertical = (vertical_convolution_height)/block_size.y;
+	dim3 grid_size_vertical = dim3(bx_vertical, by_vertical);
+    
+	// Start a timer and do the two convolutions
     struct timeval tv1, tv2;
     gettimeofday(&tv1, NULL);
-    horizontal_convolve<<<horizontal_convolution_height, horizontal_convolution_width>>>(dev_horizontal_out, dev_x, dev_horizontal_filter, x_width, x_height, horizontal_filter_width, 1);
-    vertical_convolve<<<vertical_convolution_height, vertical_convolution_width>>>(dev_vertical_out, dev_horizontal_out, dev_vertical_filter, horizontal_convolution_width, horizontal_convolution_height, 1, vertical_filter_height, constant_scalar);
+    
+    horizontal_convolve<<<grid_size_horizontal, block_size>>>(dev_horizontal_out, dev_x, dev_horizontal_filter, x_width, x_height, horizontal_filter_width, 1);
+    vertical_convolve<<<grid_size_vertical, block_size>>>(dev_vertical_out, dev_horizontal_out, dev_vertical_filter, horizontal_convolution_width, horizontal_convolution_height, 1, vertical_filter_height, constant_scalar);
 
     // Copy result data from device to host
-    cudaMemcpy(output, dev_vertical_out, vertical_convolution_width*vertical_convolution_height*sizeof(int), cudaMemcpyDeviceToHost);
+    checkCudaErrors(cudaMemcpy(output, dev_vertical_out, vertical_convolution_width * vertical_convolution_height * sizeof(int), cudaMemcpyDeviceToHost));
 
     // Responsible programmer
     cudaFree(dev_vertical_out);
