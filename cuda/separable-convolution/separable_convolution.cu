@@ -135,11 +135,11 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
 
     // Initialize grid
     dim3 block_size(TX, TY);
-	int bx_horizontal = (horizontal_convolution_width)/block_size.x;
-	int by_horizontal = (horizontal_convolution_height)/block_size.y;
+	int bx_horizontal = horizontal_convolution_width/block_size.x;
+	int by_horizontal = horizontal_convolution_height/block_size.y;
 	dim3 grid_size_horizontal = dim3(bx_horizontal, by_horizontal);
-	int bx_vertical = (vertical_convolution_width)/block_size.x;
-	int by_vertical = (vertical_convolution_height)/block_size.y;
+	int bx_vertical = vertical_convolution_width/block_size.x;
+	int by_vertical = vertical_convolution_height/block_size.y;
 	dim3 grid_size_vertical = dim3(bx_vertical, by_vertical);
     
 	// Start a timer and do the two convolutions
