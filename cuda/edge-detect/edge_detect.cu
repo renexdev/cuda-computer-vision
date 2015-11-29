@@ -189,4 +189,6 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	cudaFree(dev_edges);
 	cudaFree(dev_gx);
 	cudaFree(dev_gy);
+	cudaFree(dev_magnitude);
+	cudaFree(dev_angle);
 }
