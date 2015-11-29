@@ -9,6 +9,7 @@
 #include <iostream>
 #include "../edge-detect/edge_detect.h"
 #include "../separable-convolution/separable_convolution.h"
+#include "../helper/helper_cuda.h"
 
 using namespace cv;
 
@@ -119,13 +120,13 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 	
     // Allocate space on device
     int *dev_edges_1, *dev_edges_2, *dev_out;
-    cudaMalloc(&dev_out, width*height*sizeof(int));
-    cudaMalloc(&dev_edges_1, width*height*sizeof(int));
-    cudaMalloc(&dev_edges_2, width*height*sizeof(int));
+    checkCudaErrors(cudaMalloc(&dev_out, width*height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_edges_1, width*height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_edges_2, width*height*sizeof(int)));
 
     // Copy host arrays to device
-    cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice));
 
     // Allocate space on host for output arrays
 //    int *serial_output = (int *)malloc(width * height * sizeof(int));
@@ -144,16 +145,16 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 
 	// Difference filter
     difference_filter<<<grid_size, block_size>>>(dev_out, dev_edges_1, dev_edges_2, width, height, movement_threshold);
-    cudaMemcpy(difference, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost);
+    checkCudaErrors(cudaMemcpy(difference, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost));
 
     gettimeofday(&tv2, NULL);
     double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
 //    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
 
     // Responsible programmer
-    cudaFree(dev_out);
-    cudaFree(dev_edges_1);
-    cudaFree(dev_edges_2);
+    checkCudaErrors(cudaFree(dev_out));
+    checkCudaErrors(cudaFree(dev_edges_1));
+    checkCudaErrors(cudaFree(dev_edges_2));
     
     // Determine spatial density map
     int horizontal_divisions = 12, vertical_divisions = 10;

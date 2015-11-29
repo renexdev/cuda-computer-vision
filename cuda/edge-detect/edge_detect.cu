@@ -5,6 +5,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include "../separable-convolution/separable_convolution.h"
+#include "../helper/helper_cuda.h"
 
 using namespace cv;
 
@@ -162,13 +163,13 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	double *dev_magnitude, *dev_angle;
 	
 	// Allocate GPU memory space for partial derivatives
-	cudaMalloc(&dev_magnitude, sobel_out_width * sobel_out_height * sizeof(double));
-	cudaMalloc(&dev_angle, sobel_out_width * sobel_out_height * sizeof(double));
-	cudaMalloc(&dev_edges, sobel_out_width * sobel_out_height * sizeof(int));
-	cudaMalloc(&dev_gx, sobel_out_width * sobel_out_height * sizeof(int));
-	cudaMalloc(&dev_gy, sobel_out_width * sobel_out_height * sizeof(int));
-	cudaMemcpy(dev_gx, gx_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice);
+	checkCudaErrors(cudaMalloc(&dev_magnitude, sobel_out_width * sobel_out_height * sizeof(double)));
+	checkCudaErrors(cudaMalloc(&dev_angle, sobel_out_width * sobel_out_height * sizeof(double)));
+	checkCudaErrors(cudaMalloc(&dev_edges, sobel_out_width * sobel_out_height * sizeof(int)));
+	checkCudaErrors(cudaMalloc(&dev_gx, sobel_out_width * sobel_out_height * sizeof(int)));
+	checkCudaErrors(cudaMalloc(&dev_gy, sobel_out_width * sobel_out_height * sizeof(int)));
+	checkCudaErrors(cudaMemcpy(dev_gx, gx_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
 	
 	// Serial comparison
 //	printf("=====THRESHOLDING AND NON-MAXIMUM SUPPRESSION=====\n");
@@ -179,16 +180,16 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	gettimeofday(&tv1, NULL);
 	gradient_magnitude_and_direction<<<grid_size, block_size>>>(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy);
 	thresholding_and_suppression<<<grid_size, block_size>>>(dev_edges, dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, high_threshold, low_threshold);
-	cudaMemcpy(edges_out, dev_edges, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyDeviceToHost);
+	checkCudaErrors(cudaMemcpy(edges_out, dev_edges, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyDeviceToHost));
 	gettimeofday(&tv2, NULL);
 	double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
 //	printf("Parallel thresholding and non-maximum suppression execution time: %f seconds\n", parallel_computation_time);
 //	printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
 
 	// Free GPU memory
-	cudaFree(dev_edges);
-	cudaFree(dev_gx);
-	cudaFree(dev_gy);
-	cudaFree(dev_magnitude);
-	cudaFree(dev_angle);
+	checkCudaErrors(cudaFree(dev_edges));
+	checkCudaErrors(cudaFree(dev_gx));
+	checkCudaErrors(cudaFree(dev_gy));
+	checkCudaErrors(cudaFree(dev_magnitude));
+	checkCudaErrors(cudaFree(dev_angle));
 }

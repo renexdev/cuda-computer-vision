@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <cuda_runtime.h>
-#include <helper_cuda.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include "separable_convolution.h"
+#include "../helper/helper_cuda.h"
 
 using namespace cv;
 
@@ -153,11 +153,11 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
     checkCudaErrors(cudaMemcpy(output, dev_vertical_out, vertical_convolution_width * vertical_convolution_height * sizeof(int), cudaMemcpyDeviceToHost));
 
     // Responsible programmer
-    cudaFree(dev_vertical_out);
-    cudaFree(dev_horizontal_out);
-    cudaFree(dev_horizontal_filter);
-    cudaFree(dev_vertical_filter);
-    cudaFree(dev_x);
+    checkCudaErrors(cudaFree(dev_vertical_out));
+    checkCudaErrors(cudaFree(dev_horizontal_out));
+    checkCudaErrors(cudaFree(dev_horizontal_filter));
+    checkCudaErrors(cudaFree(dev_vertical_filter));
+    checkCudaErrors(cudaFree(dev_x));
 
     // Parallel computation time
     gettimeofday(&tv2, NULL);
