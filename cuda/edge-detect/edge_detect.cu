@@ -157,8 +157,6 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);
 
 	// Magnitude and thresholding
-	static double *magnitude = (double *)malloc(sobel_out_width * sobel_out_height * sizeof(double));
-	static double *angle = (double *)malloc(sobel_out_width * sobel_out_height * sizeof(double));
 	static int *serial_edges = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	int *dev_edges, *dev_gx, *dev_gy;
 	double *dev_magnitude, *dev_angle;

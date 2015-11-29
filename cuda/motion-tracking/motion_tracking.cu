@@ -1,8 +1,10 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <cuda.h>
 #include <sys/time.h>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include "../edge-detect/edge_detect.h"
@@ -122,6 +124,7 @@ void motion_track(int *output, int *edges_1, int *edges_2, int width, int height
     // Allocate space on host for output arrays
     int *serial_output = (int *)malloc(width * height * sizeof(int));
 
+    printf("=====DIFFERENCE FILTER=====");
     double serial_time_spent = serial_difference_filter(serial_output, edges_1, edges_2, width, height, threshold);
 
     struct timeval tv1, tv2;
@@ -154,15 +157,22 @@ void motion_track(int *output, int *edges_1, int *edges_2, int width, int height
 }
 
 int main() {
-	// Load external image into array
-	Mat image_1 = imread("../images/lobby_1.jpg", 0);
-	Mat image_2 = imread("../images/lobby_2.jpg", 0);
-	int *x_1 = (int *)malloc(image_1.cols * image_1.rows * sizeof(int));
-	int *x_2 = (int *)malloc(image_2.cols * image_2.rows * sizeof(int));
-	static int *gaussian_out_1 = (int *)malloc((image_1.rows * image_1.cols + 10) * sizeof(int));
-	static int *gaussian_out_2 = (int *)malloc((image_2.rows * image_2.cols + 10) * sizeof(int));
-	for (int i = 0; i < image_1.rows; i++) {
-		for (int j = 0; j < image_1.cols; j++) {
+	VideoCapture cap(0);
+	Mat image_1, image_2;
+	Mat frame_1, frame_2;
+	cap >> frame_1;
+	sleep(1);
+	cap >> frame_2;
+	cvtColor(frame_1, image_1, COLOR_BGR2GRAY);
+	cvtColor(frame_2, image_2, COLOR_BGR2GRAY);
+	int input_width = image_1.cols;
+	int input_height = image_1.rows;
+	int *x_1 = (int *)malloc(input_width * input_height * sizeof(int));
+	int *x_2 = (int *)malloc(input_width * input_height * sizeof(int));
+	static int *gaussian_out_1 = (int *)malloc((input_width * input_height + 10) * sizeof(int));
+	static int *gaussian_out_2 = (int *)malloc((input_width * input_height + 10) * sizeof(int));
+	for (int i = 0; i < input_height; i++) {
+		for (int j = 0; j < input_width; j++) {
 			x_1[i * image_1.cols + j] = image_1.at<uchar>(i, j);
 			x_2[i * image_2.cols + j] = image_2.at<uchar>(i, j);
 		}
@@ -199,10 +209,14 @@ int main() {
     motion_area_estimate(motion_area, density_map, sobel_out_width, sobel_out_height, horizontal_divisions, vertical_divisions, 5.0);
     
     // Write to disk
+    Mat frame_image_1(input_height, input_width, CV_32SC1, x_1);
+	Mat frame_image_2(input_height, input_width, CV_32SC1, x_2);
 	Mat edges_image_1(sobel_out_height, sobel_out_width, CV_32SC1, edges_1);
 	Mat edges_image_2(sobel_out_height, sobel_out_width, CV_32SC1, edges_2);
 	Mat difference_image(sobel_out_height, sobel_out_width, CV_32SC1, difference);
 	Mat motion_area_image(sobel_out_height, sobel_out_width, CV_32SC1, motion_area);
+	imwrite("frame_1.jpg", frame_image_1);
+	imwrite("frame_2.jpg", frame_image_2);
 	imwrite("edges_1.jpg", edges_image_1);
 	imwrite("edges_2.jpg", edges_image_2);
 	imwrite("difference.jpg", difference_image);
