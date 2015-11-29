@@ -109,7 +109,7 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
     static int *dev_horizontal_filter, *dev_vertical_filter, *dev_x;  // Horizontal filter, vertical filter, and input array
     //int *output = (int *)malloc((x_width * x_height + horizontal_filter_width + vertical_filter_height) * sizeof(int));
     //int *serial_output = (int *)malloc((x_width * x_height + horizontal_filter_width + vertical_filter_height) * sizeof(int));
-    static int serial_output[170000000];
+//    static int serial_output[170000000];
 
     // Horizontal filter, followed by vertical filter
     int horizontal_convolution_width = x_width + horizontal_filter_width - 1;
@@ -131,7 +131,7 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
 
     // Start with a serial convolution for comparison
     // double serial_computation_time = serial_convolve(serial_output, x, filter, x_width, x_height, horizontal_filter_width, vertical_filter_height);
-    double serial_computation_time = serial_separable_convolve(serial_output, x, horizontal_filter, vertical_filter, x_width, x_height, horizontal_filter_width, vertical_filter_height, constant_scalar);
+//    double serial_computation_time = serial_separable_convolve(serial_output, x, horizontal_filter, vertical_filter, x_width, x_height, horizontal_filter_width, vertical_filter_height, constant_scalar);
 
     // Initialize grid
     dim3 block_size(TX, TY);
@@ -162,13 +162,13 @@ void separable_convolve(int *output, int *x, int x_width, int x_height, int *hor
     // Parallel computation time
     gettimeofday(&tv2, NULL);
     double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    printf("Parallel convolution execution time: %f seconds\n", parallel_computation_time);
+//    printf("Parallel convolution execution time: %f seconds\n", parallel_computation_time);
 
     // Error checking
-    for (int i = 0; i < vertical_convolution_width*vertical_convolution_height; i++) {
-        if (serial_output[i] != output[i]) {
+//    for (int i = 0; i < vertical_convolution_width*vertical_convolution_height; i++) {
+//        if (serial_output[i] != output[i]) {
             // printf("Error! serial and parallel computation results are inconsistent: %d, %d\n", serial_output[i], output[i]);
-        }
-    }
-    printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
+//        }
+//    }
+//    printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
 }

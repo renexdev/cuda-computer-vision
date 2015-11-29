@@ -143,21 +143,21 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	dim3 grid_size = dim3(bx, by);
 	
 	// Horizontal direction
-	printf("=====HORIZONTAL PARTIAL DIFFERENTIATION=====\n");
+//	printf("=====HORIZONTAL PARTIAL DIFFERENTIATION=====\n");
 	int gx_horizontal[3] = {1, 0, -1};
 	int gx_vertical[3] = {1, 2, 1};
 	static int *gx_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	separable_convolve(gx_out, image, sobel_out_width, sobel_out_height, gx_horizontal, gx_vertical, 3, 1);
 	
 	// Vertical direction
-	printf("=====VERTICAL PARTIAL DIFFERENTIATION=====\n");
+//	printf("=====VERTICAL PARTIAL DIFFERENTIATION=====\n");
 	int gy_horizontal[3] = {1, 2, 1};
 	int gy_vertical[3] = {1, 0, -1};
 	static int *gy_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);
 
 	// Magnitude and thresholding
-	static int *serial_edges = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
+//	static int *serial_edges = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	int *dev_edges, *dev_gx, *dev_gy;
 	double *dev_magnitude, *dev_angle;
 	
@@ -171,8 +171,8 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice);
 	
 	// Serial comparison
-	printf("=====THRESHOLDING AND NON-MAXIMUM SUPPRESSION=====\n");
-	double serial_computation_time = serial_thresholding_and_suppression(serial_edges, sobel_out_width, sobel_out_height, gx_out, gy_out, high_threshold, low_threshold);
+//	printf("=====THRESHOLDING AND NON-MAXIMUM SUPPRESSION=====\n");
+//	double serial_computation_time = serial_thresholding_and_suppression(serial_edges, sobel_out_width, sobel_out_height, gx_out, gy_out, high_threshold, low_threshold);
 	
 	// Parallelization
 	struct timeval tv1, tv2;
@@ -182,8 +182,8 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 	cudaMemcpy(edges_out, dev_edges, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyDeviceToHost);
 	gettimeofday(&tv2, NULL);
 	double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-	printf("Parallel thresholding and non-maximum suppression execution time: %f seconds\n", parallel_computation_time);
-	printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
+//	printf("Parallel thresholding and non-maximum suppression execution time: %f seconds\n", parallel_computation_time);
+//	printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
 
 	// Free GPU memory
 	cudaFree(dev_edges);

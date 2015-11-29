@@ -66,7 +66,8 @@ __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int 
 
     // Set it to 0 initially
     dev_out[i] = 0;
-    if (edges_1[i] != edges_2[i]) {
+    int crop_size = 7;
+    if (r > crop_size && c > crop_size && r < height - crop_size && c < width - crop_size && edges_1[i] != edges_2[i]) {
         // Set to 255 if there is a pixel mismatch
         dev_out[i] = 255;
         for (int x_apron = -threshold; x_apron <= threshold; x_apron++) {
@@ -110,7 +111,12 @@ double serial_difference_filter(int *difference, int *edges_1, int *edges_2, int
     return time_spent;
 }
 
-void motion_track(int *output, int *edges_1, int *edges_2, int width, int height, int threshold) {
+void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2, int width, int height, int movement_threshold, int motion_threshold) {
+	// Note: movement_threshold refers to the pixel apron around which the difference filter attempts to look for differences.
+	// Higher movement_threshold == more leniency in how much camera shake is tolerated
+	// motion_threshold refers to the minimum spatial pixel difference density required for a particular segment of the difference to be registered as motion.
+	// Lower motion_threshold == more sensitive in picking up motion
+	
     // Allocate space on device
     int *dev_edges_1, *dev_edges_2, *dev_out;
     cudaMalloc(&dev_out, width*height*sizeof(int));
@@ -122,46 +128,57 @@ void motion_track(int *output, int *edges_1, int *edges_2, int width, int height
     cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice);
 
     // Allocate space on host for output arrays
-    int *serial_output = (int *)malloc(width * height * sizeof(int));
+//    int *serial_output = (int *)malloc(width * height * sizeof(int));
 
-    printf("=====DIFFERENCE FILTER=====\n");
-    double serial_time_spent = serial_difference_filter(serial_output, edges_1, edges_2, width, height, threshold);
-
-    struct timeval tv1, tv2;
-    gettimeofday(&tv1, NULL);
+//    printf("=====DIFFERENCE FILTER=====\n");
+//    double serial_time_spent = serial_difference_filter(difference, edges_1, edges_2, width, height, movement_threshold);
 
     // Initialize grid
 	dim3 block_size(TX, TY);
 	int bx = width/block_size.x;
 	int by = height/block_size.y;
 	dim3 grid_size = dim3(bx, by);
+	
+	struct timeval tv1, tv2;
+	gettimeofday(&tv1, NULL);
 
-    difference_filter<<<grid_size, block_size>>>(dev_out, dev_edges_1, dev_edges_2, width, height, threshold);
-    cudaMemcpy(output, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost);
+	// Difference filter
+    difference_filter<<<grid_size, block_size>>>(dev_out, dev_edges_1, dev_edges_2, width, height, movement_threshold);
+    cudaMemcpy(difference, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost);
 
     gettimeofday(&tv2, NULL);
     double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
-    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
+//    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
 
     // Responsible programmer
     cudaFree(dev_out);
     cudaFree(dev_edges_1);
     cudaFree(dev_edges_2);
+    
+    // Determine spatial density map
+    int horizontal_divisions = 12, vertical_divisions = 10;
+	double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
+	spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
+	
+	// Estimate motion area
+	motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
 
-    for (int i = 0; i < width*height; i++) {
-        if (serial_output[i] != output[i]) {
-            // printf("Error! Serial and parallel computation results are inconsistent: %d, %d\n", serial_output[i], output[i]);
-        }
-    }
-    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent);
+//    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent);
 }
 
 int main() {
+	// Config constants
+	double movement_threshold = 10.0;
+	int motion_threshold = 5;
+	
 	namedWindow("Input", WINDOW_NORMAL);
 	namedWindow("Difference", WINDOW_NORMAL);
 	namedWindow("Motion", WINDOW_NORMAL);
 	VideoCapture cap(0);
 	for (;;) {
+		struct timeval tv1, tv2;
+		gettimeofday(&tv1, NULL);
+		// Continuously read two frames at a time from external camera
 		Mat image_1, image_2;
 		Mat frame_1, frame_2;
 		cap >> frame_1;
@@ -172,8 +189,8 @@ int main() {
 		int input_height = image_1.rows;
 		int *x_1 = (int *)malloc(input_width * input_height * sizeof(int));
 		int *x_2 = (int *)malloc(input_width * input_height * sizeof(int));
-		static int *gaussian_out_1 = (int *)malloc((input_width * input_height + 10) * sizeof(int));
-		static int *gaussian_out_2 = (int *)malloc((input_width * input_height + 10) * sizeof(int));
+		int *gaussian_out_1 = (int *)malloc((input_width + 2) * (input_height + 2) * sizeof(int));
+		int *gaussian_out_2 = (int *)malloc((input_width + 2) * (input_height + 2) * sizeof(int));
 		for (int i = 0; i < input_height; i++) {
 			for (int j = 0; j < input_width; j++) {
 				x_1[i * image_1.cols + j] = image_1.at<uchar>(i, j);
@@ -182,7 +199,7 @@ int main() {
 		}
 	
 		// Gaussian filter
-		printf("=====GAUSSIAN FILTER=====\n");
+//		printf("=====GAUSSIAN FILTER=====\n");
 		int horizontal_filter[3] = {1, 2, 1};
 		int vertical_filter[3] = {1, 2, 1};
 		int kernel_size = 3;
@@ -201,21 +218,12 @@ int main() {
 		edge_detect(edges_1, gaussian_out_1, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
 		edge_detect(edges_2, gaussian_out_2, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
 	
-		static int *difference = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		int threshold = 5;
-		motion_track(difference, edges_1, edges_2, sobel_out_width, sobel_out_height, threshold);
-		
-		int horizontal_divisions = 12, vertical_divisions = 10;
-		double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
-		spatial_difference_density_map(density_map, difference, sobel_out_width, sobel_out_height, horizontal_divisions, vertical_divisions);
+		// Motion detect
+		int *difference = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 		int *motion_area = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		double motion_threshold = 10.0;
-		motion_area_estimate(motion_area, density_map, sobel_out_width, sobel_out_height, horizontal_divisions, vertical_divisions, motion_threshold);
+		motion_detect(motion_area, difference, edges_1, edges_2, sobel_out_width, sobel_out_height, movement_threshold, motion_threshold);
 		
-		for (int i = 0; i < horizontal_divisions * vertical_divisions; i++) {
-	//    	printf("%f\n", density_map[i]);
-		}
-		
+		// Display output
 		for (int i = 0; i < input_height * input_width; i++) {
 			// Before imshow() displays the image, it divides all the values in the matrix by 255, because God knows why.
 			// The below three lines of code is a hack to counter that idiocy.
@@ -234,6 +242,13 @@ int main() {
 		imshow("Motion", motion_area_image);
 		if (waitKey(30) >= 0)
 			break;
+		
+		// FPS approximation
+		gettimeofday(&tv2, NULL);
+		double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
+		char title[16];
+		sprintf(title, "Input - %0.2f fps", 1/time_spent);
+		setWindowTitle("Input", title);
 	}
 	
 	return 0;
