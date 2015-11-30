@@ -220,19 +220,19 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 	\nl Initialize $\boldsymbol{E}$ to 0 $\forall i \in [0, M - 1], \forall j \in [0, N - 1]$\;
 	\nl \ForEach {$i \in [\alpha + 1, M - \alpha - 2]$} {
 		\nl \ForEach {$j \in [\alpha + 1, N - \alpha - 2]$} {
-			\nl HorizontalGradient $\gets -\frac{\pi}{6} < \theta < \frac{\pi}{6} \vee -\pi < \theta < -\frac{5 \pi}{6} \vee \frac{5\pi}{6} < \theta < \pi$\;
-			\nl HorizontalMax $\gets$ HorizontalGradient $\wedge G_{i, j} > G_{i, j \pm 1}$\;
-			\nl PosDiagonalGradient $\gets \frac{\pi}{6} < \theta < \frac{\pi}{3} \vee -\frac{5 \pi}{6} < \theta < -\frac{2 \pi}{3}$\;
-			\nl PosDiagonalMax $\gets$ PosDiagonalGradient $\wedge G_{i, j} > G_{i \pm 1, \pm j}$\;
-			\nl VerticalGradient $\gets \frac{\pi}{3} < \theta < \frac{2 \pi}{3} \vee -\frac{2 \pi}{3} < \theta < -\frac{\pi}{3}$\;
-			\nl VerticalMax $\gets$ VerticalGradient $\wedge G_{i, j} > G_{i \pm 1, j}$\;
-			\nl NegDiagonalGradient $\gets \frac{2 \pi}{3} < \theta < \frac{5 \pi}{6} \vee -\frac{\pi}{3} < \theta < -\frac{\pi}{6}$\;
-			\nl NegDiagonalMax $\gets$ NegDiagonalGradient $\wedge G_{i, j} > G_{i \pm 1, \mp j}$\;
+			\nl HorizontalGradient $\gets -\frac{\pi}{6} < \boldsymbol{\theta}_{i, j} < \frac{\pi}{6} \vee -\pi < \boldsymbol{\theta}_{i, j} < -\frac{5 \pi}{6} \vee \frac{5\pi}{6} < \boldsymbol{\theta}_{i, j} < \pi$\;
+			\nl HorizontalMax $\gets$ HorizontalGradient $\wedge \boldsymbol{G}_{i, j} > \boldsymbol{G}_{i, j \pm 1}$\;
+			\nl PosDiagonalGradient $\gets \frac{\pi}{6} < \boldsymbol{\theta}_{i, j} < \frac{\pi}{3} \vee -\frac{5 \pi}{6} < \boldsymbol{\theta}_{i, j} < -\frac{2 \pi}{3}$\;
+			\nl PosDiagonalMax $\gets$ PosDiagonalGradient $\wedge \boldsymbol{G}_{i, j} > \boldsymbol{G}_{i \pm 1, \pm j}$\;
+			\nl VerticalGradient $\gets \frac{\pi}{3} < \boldsymbol{\theta}_{i, j} < \frac{2 \pi}{3} \vee -\frac{2 \pi}{3} < \boldsymbol{\theta}_{i, j} < -\frac{\pi}{3}$\;
+			\nl VerticalMax $\gets$ VerticalGradient $\wedge \boldsymbol{G}_{i, j} > \boldsymbol{G}_{i \pm 1, j}$\;
+			\nl NegDiagonalGradient $\gets \frac{2 \pi}{3} < \boldsymbol{\theta}_{i, j} < \frac{5 \pi}{6} \vee -\frac{\pi}{3} < \boldsymbol{\theta}_{i, j} < -\frac{\pi}{6}$\;
+			\nl NegDiagonalMax $\gets$ NegDiagonalGradient $\wedge \boldsymbol{G}_{i, j} > \boldsymbol{G}_{i \pm 1, \mp j}$\;
 			
 			\nl \If {$\boldsymbol{G}_{i, j} > t_h \wedge ($\textnormal{HorizontalMax} $\vee$ \textnormal{PosDiagonalMax} $\vee$ \textnormal{VerticalMax} $\vee$ \textnormal{NegDiagonalMax}$)$} {
-				\For {$i' \in [-\alpha, \alpha]$} {
-					\For {$j' \in [-\alpha, \alpha]$} {
-						\nl \If{$\boldsymbol{E}_{i + i', j + j'} > t_l$} {
+				\ForEach {$i' \in [-\alpha, \alpha]$} {
+					\ForEach {$j' \in [-\alpha, \alpha]$} {
+						\nl \If{$\boldsymbol{G}_{i + i', j + j'} > t_l$} {
 							\nl $\boldsymbol{E}_{i + i', j + j'} \gets 255$\;
 						}
 					}
@@ -240,12 +240,56 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 			}
 		}
 	}
+	\nl \Return $\boldsymbol{E}$\;
 	\
 \end{algorithm}
 
+\subsection{GPU parallelization}
+Placeholder text
+
 
 \section{Motion Detection Algorithm}
-Our motion detection algorithm compares the edges from two frames temporally separated by a small interval of time and attempts to estimate regions of the frame that exhibit movement or motion.
+Our motion detection algorithm compares the edges from two frames temporally separated by a small interval of time and attempts to estimate regions of the frame that exhibit movement or motion. This process is then repeated continuously to provide a real-time visualization of the regions of movement in a continuous video stream. The motion detection algorithm we present is composed of the following steps:
+\begin{enumerate}
+	\item Given two frames $\boldsymbol{F}_1$ and $\boldsymbol{F}_2$ separated by a time interval of $\Delta t$, compute its edges $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$.
+	\item Create a strict binary difference matrix $\boldsymbol{D}_0$ between $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$ whose value is high at locations at which an edge is present in frame but not the other, and low at locations at which both frames have an edge or no edge.
+	\item For each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference matrix $\boldsymbol{D}$ is created by considering a box of constant size $\beta$ x $\beta$ around that pixel and suppressing the value of the surrounding pixels to 0 if its value matches that at $\boldsymbol{D}_{0_{i, j}}$. This step is designed to reduce false positives of motion detection arising from stray movement of the frame (e.g. camera shake).
+\end{enumerate}
+More precisely, the matrix $\boldsymbol{D}$ referenced above is defined as
+\[
+\boldsymbol{D} = |\boldsymbol{E}_1 - \boldsymbol{E}_2| =
+\begin{cases}
+	255 & \boldsymbol{E}_{1_{i, j}} \neq \boldsymbol{E}_{2_{i, j}} \\
+	0 & \boldsymbol{E}_{1_{i, j}} = \boldsymbol{E}_{2_{i, j}}
+\end{cases}
+\]
+The computation of $\boldsymbol{D'}$ is determined by Algorithm \ref{difference-matrix-algorithm}.
+\begin{algorithm}[h]
+	\smaller
+	\label{difference-matrix-algorithm}
+	\caption{Determining the difference matrix between two frames, given their edge data: pseudocode for a serial, CPU implementation}
+	
+	\KwIn{Edge matrices $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$, both of dimensions $M$ x $N$, and movement tolerance threshold $\beta$}
+	\KwOut{Thresholded difference matrix $\boldsymbol{D}$; any entry $\boldsymbol{D}_{i, j}$ is $255$ if there is a difference, $0$ otherwise}
+	
+	\nl Initialize $\boldsymbol{D}_{i, j}$ to 0 $\forall i \in [0, M - 1], \forall j \in [0, N - 1]$\;
+	\nl \ForEach {$i \in [0, M - 1]$} {
+		\nl \ForEach {$j \in [0, N - 1]$} {
+			\nl \If {$\boldsymbol{E}_{1_{i, j}} \neq \boldsymbol{E}_{2_{i, j}}$} {
+				\nl $\boldsymbol{D}_{i, j} \gets 255$\;
+				\ForEach {$i' \in [-\beta, \beta]$} {
+					\ForEach {$j' \in [-\beta, \beta]$} {
+						\nl \If{$(i + i', j + j')$ \textnormal{is within the bounds of} $E_1$ \textnormal{and} $\boldsymbol{E}_{1_{i + i', j + j'}} = \boldsymbol{E}_{2_{i + i', j + j'}}$} {
+							\nl $\boldsymbol{D}_{i, j} \gets 0$\;
+						}
+					}
+				}
+			}
+		}
+	}
+	\nl \Return $\boldsymbol{D}$\;
+	\
+\end{algorithm}
 
 \subsection{Thresholded Frame-by-Frame Difference Map}
 Placeholder text
