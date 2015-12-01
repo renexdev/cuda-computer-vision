@@ -85,6 +85,12 @@ For example, consider the $5312$ x $2988$ pixel image (taken at a high ISO to de
 	\caption{Grayscale intensity of unfiltered noisy image at each pixel}
     \label{noisy-image-mesh}
 \end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{fft_noisy_image.jpg}
+	\caption{FFT magnitude of unfiltered noisy image at each pixel (log scale)}
+    \label{noisy-image-fft}
+\end{figure}
 To low-pass filter our image, we apply a discrete Gaussian filter. Generally, a Gaussian blur kernel of size $2n + 1$ x $2n + 1$ ($\forall n \in \mathbb{Z}^+$, and with parameter $\sigma$) is given by
 $$h[i, j] = \frac{1}{2\pi \sigma^2}e^{-\frac{(i - k - 1)^2 + (j - k - 1)^2}{2\sigma^2}}$$
 Our implementation of Gaussian filtering uses the constant-sized ($k = 3$), constant-$\sigma$ kernel
@@ -119,6 +125,12 @@ Applying a Gaussian filter with parameters $k = 5$ and $\sigma = 5$ to the above
 	\includegraphics[width=0.45\textwidth]{filtered_noisy_image_mesh.jpg}
 	\caption{Grayscale intensity of Gaussian-filtered noisy image at each pixel}
     \label{filtered-noisy-image-mesh}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{fft_filtered_noisy_image.jpg}
+	\caption{FFT magnitude of Gaussian-filtered noisy image at each pixel (log scale)}
+    \label{filtered-noisy-image-fft}
 \end{figure}
 
 \subsection{Gradient Computation: The Sobel Operator}
@@ -351,13 +363,13 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 	\label{difference-density-matrix-algorithm}
 	\caption{Estimating regions of motion in an image with a difference density matrix: pseudocode for a serial, CPU implementation}
 	
-	\KwIn{Thresholded difference matrix $\boldsymbol{D}$, motion threshold $\Gamma$, width of the original image $M$, height of the original image $N$, number of horizontal divisions $m$, and number of vertical divisions $n$ ($m$ and $n$ are the dimensions of $\boldsymbol{D}'$)}
+	\KwIn{Thresholded difference matrix $\boldsymbol{D}$, motion threshold $\Gamma$, width of the original image $M$, height of the original image $N$, number of horizontal divisions $m$, and number of vertical divisions $n$}
 	\KwOut{The difference density matrix $\boldsymbol{D}'$ of dimensions $m$ x $n$ whose value is 1 if there is motion in that region, and 0 otherwise}
 	
 	\nl Initialize $\boldsymbol{D}'$ to 0 $\forall i \in [0, m - 1], \forall j \in [0, n - 1]$\;
 	\nl \ForEach {$i \in [0, m - 1]$} {
 		\nl \ForEach {$j \in [0, n - 1]$} {
-			\nl $x \gets 0$\tcp*{Number of differences in this region}\
+			\nl $x \gets 0$\tcp*{Number of differences in this region}
 			\nl \ForEach{$i' \in [0, \frac{M}{n}]$} {
 				\nl \ForEach{$j' \in [0, \frac{N}{n}]$} {
 					\nl \If {$\boldsymbol{D}_{i + i', j + j'} \neq 0$} {
@@ -382,7 +394,7 @@ Placeholder text
 \section{Conclusion}
 Placeholder text
 
-\section*{Acknowledgment}
+\section*{Acknowledgments}
 Placeholder text
 
 \end{document}
