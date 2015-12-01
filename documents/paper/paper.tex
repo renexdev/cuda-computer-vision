@@ -209,6 +209,12 @@ More precisely, a pixel at $(i, j)$ with gradient magnitude $G_{i, j} > t_l$ and
 	\item $(\frac{2 \pi}{3} < \theta < \frac{5 \pi}{6} \vee -\frac{\pi}{3} < \theta < -\frac{\pi}{6}) \wedge G_{i, j} > G_{i \pm 1, \mp j}$
 \end{itemize}
 The selective thresholding technique extends on the procedure of non-maximum suppression. For any pixel that passes crtiteria (2) (maximized, relative to the neighboring pixels, along the gradient direction), consider an $\alpha$ x $\alpha$ box around the pixel. If any pixel within the box exceeds the low threshold $t_l$, then the pixel is accepted. This technique attempts to catch pixels that might ``connect" ridge pixels identified by criteria (2) but fail to satify the criterion themselves, in order to create more continuous edge lines.
+\begin{figure}[]
+	\centering
+	\includegraphics[width=0.45\textwidth]{pcb_edges.jpg}
+	\caption{Output of edge detection algorithm after non-maximum suppression and selective thresholding on the image of Figure \ref{pcb-original}, with parameters $t_l = 70$ and $t_h = 80$}
+    \label{pcb-edges}
+\end{figure}
 \begin{algorithm}[h]
 	\smaller
 	\label{non-maximum-suppression-selective-thresholding-algorithm}
@@ -253,18 +259,52 @@ Our motion detection algorithm compares the edges from two frames temporally sep
 \begin{enumerate}
 	\item Given two frames $\boldsymbol{F}_1$ and $\boldsymbol{F}_2$ separated by a time interval of $\Delta t$, compute its edges $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$.
 	\item Create a strict binary difference matrix $\boldsymbol{D}_0$ between $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$ whose value is high at locations at which an edge is present in frame but not the other, and low at locations at which both frames have an edge or no edge.
-	\item For each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference matrix $\boldsymbol{D}$ is created by considering a box of constant size $\beta$ x $\beta$ around that pixel and suppressing the value of the surrounding pixels to 0 if its value matches that at $\boldsymbol{D}_{0_{i, j}}$. This step is designed to reduce false positives of motion detection arising from stray movement of the frame (e.g. camera shake).
+	\item Apply a parameter-controlled movement tolerance thresholding operation to the matrix $\boldsymbol{D}_0$ to obtain matrix $\boldsymbol{D}$, in order to suppress potential false positives of detected motion from incidental camera movement.
 \end{enumerate}
-More precisely, the matrix $\boldsymbol{D}$ referenced above is defined as
+\par $\boldsymbol{F}_1$ and $\boldsymbol{F}_2$ are obtained by sampling frames from a continuous video stream, a task aided by the OpenCV C library. Thus, the time interval $\Delta t$ will be small enough for a real-time algorithm. The edges $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$ are computed with the edge detection algorithm of Section II. Below, we explore, in greater depth, the procedures for building a thresholded diffrence matrix and finally estimating the motion area by analyzing a spatial difference density map.
+
+\subsection{Thresholded Frame-by-Frame Difference Map}
+The preliminary requirement in determining areas of motion from two frames is a systematic method of determining and quantifying the differences between two frames separated by a small $\Delta t$. Intuitively, areas of motion within the time interval $\Delta t$ should exist at locations at which the difference between the two frames is large. This process is then continuously repeated for every pair of input frames in order to create a real-time motion detector. In our algorithm, we quantify differences on a binary basis using edge data from our edge detection algorithm, then determine motion locations from a thresholded density map of the difference matrix $\boldsymbol{D}$.
+\par More formally, we begin with a matrix $\boldsymbol{D}_0$ created from a simple comparison of $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$.
 \[
-\boldsymbol{D} = |\boldsymbol{E}_1 - \boldsymbol{E}_2| =
+\boldsymbol{D}_0 = |\boldsymbol{E}_1 - \boldsymbol{E}_2| =
 \begin{cases}
 	255 & \boldsymbol{E}_{1_{i, j}} \neq \boldsymbol{E}_{2_{i, j}} \\
 	0 & \boldsymbol{E}_{1_{i, j}} = \boldsymbol{E}_{2_{i, j}}
 \end{cases}
 \]
-The computation of $\boldsymbol{D'}$ is determined by Algorithm \ref{difference-matrix-algorithm}.
-\begin{algorithm}[h]
+Then, for each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference matrix $\boldsymbol{D}$ is created by considering a box of constant size $\beta$ x $\beta$ around that pixel and suppressing the value of the surrounding pixels to 0 if its value matches that at $\boldsymbol{D}_{0_{i, j}}$. This step is designed to reduce false positives of motion detection arising from stray movement of the frame (e.g. camera shake). The computation of $\boldsymbol{D}$ is demonstrated in Algorithm \ref{difference-matrix-algorithm}. The output matrix is then used as input to building a spatial difference density map, from which we estimate motion locations.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_1.jpg}
+	\caption{Example of difference matrix computation: original initial frame $\boldsymbol{F}_1$ of dimensions $5312$ x $2988$}
+    \label{desk-1-original}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_2.jpg}
+	\caption{Example of difference matrix computation: original initial frame $\boldsymbol{F}_2$ (the item displaced between the two frames is the highlighter at the center)}
+    \label{desk-2-original}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_edges_1.jpg}
+	\caption{Example of difference matrix computation: edges of the initial frame $\boldsymbol{E}_1$ computed with parameters $k = 5$, $\sigma = 5$, $t_l = 15$, $t_h = 25$}
+    \label{desk-1-edges}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_edges_2.jpg}
+	\caption{Example of difference matrix computation: edges of the initial frame $\boldsymbol{E}_2$ computed with parameters $k = 5$, $\sigma = 5$, $t_l = 15$, $t_h = 25$}
+    \label{desk-2-edges}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_difference.jpg}
+	\caption{Example of difference matrix computation: difference matrix $\boldsymbol{D}$ with parameter $\beta = 12$}
+    \label{desk-difference}
+\end{figure}
+\begin{algorithm}[]
 	\smaller
 	\label{difference-matrix-algorithm}
 	\caption{Determining the difference matrix between two frames, given their edge data: pseudocode for a serial, CPU implementation}
@@ -291,8 +331,6 @@ The computation of $\boldsymbol{D'}$ is determined by Algorithm \ref{difference-
 	\
 \end{algorithm}
 
-\subsection{Thresholded Frame-by-Frame Difference Map}
-Placeholder text
 
 \subsection{Motion Area Estimation via a Spatial Difference Density Map}
 Placeholder text
