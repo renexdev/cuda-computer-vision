@@ -33,9 +33,6 @@ __global__ void thresholding_and_suppression(int *dev_output, double *dev_magnit
     if (r > 1 && c > 1 && r < input_height - 1 && c < input_width - 1) {
         double magnitude = dev_magnitude[i];
         if (magnitude > high_threshold) {
-        	// Immediately accept any pixel above the high threshold
-        	dev_output[i] = 255;
-        	
         	// Non-maximum suppression: determine magnitudes in the surrounding pixel and the gradient direction of the current pixel
         	double magnitude_above = dev_magnitude[(r - 1) * input_width + c];
 			double magnitude_below = dev_magnitude[(r + 1) * input_width + c];
@@ -60,6 +57,7 @@ __global__ void thresholding_and_suppression(int *dev_output, double *dev_magnit
 			// Consider a surrounding apron around the current pixel to catch potentially disconnected pixel nodes
 			int apron_size = 2;
 			if (is_vertical_max || is_horizontal_max || is_positive_diagonal_max || is_negative_diagonal_max) {
+				dev_output[i] = 255;
 				for (int m = -apron_size; m <= apron_size; m++) {
 					for (int n = -apron_size; n <= apron_size; n++) {
 						if (r + m > 0 && r + m < input_height && c + n > 0 && c + n < input_width) {
@@ -86,9 +84,6 @@ double serial_thresholding_and_suppression(int *dev_output, int input_width, int
 			if (r > 1 && c > 1 && r < input_height - 1 && c < input_width - 1) {
 				double magnitude = sqrt(pow((double)g_x[i], 2) + pow((double)g_y[i], 2));
 				if (magnitude > high_threshold) {
-					// Immediately accept any pixel above the high threshold
-					dev_output[i] = 255;
-					
 					// Non-maximum suppression: determine magnitudes in the surrounding pixel and the gradient direction of the current pixel
 					double magnitude_above = sqrt(pow((double)g_x[(r - 1) * input_width + c], 2) + pow((double)g_y[(r - 1) * input_width + c], 2));
 					double magnitude_below = sqrt(pow((double)g_x[(r + 1) * input_width + c], 2) + pow((double)g_y[(r + 1) * input_width + c], 2));
@@ -113,6 +108,7 @@ double serial_thresholding_and_suppression(int *dev_output, int input_width, int
 					// Consider a surrounding apron around the current pixel to catch potentially disconnected pixel nodes
 					int apron_size = 2;
 					if (is_vertical_max || is_horizontal_max || is_positive_diagonal_max || is_negative_diagonal_max) {
+						dev_output[i] = 255;
 						for (int m = -apron_size; m <= apron_size; m++) {
 							for (int n = -apron_size; n <= apron_size; n++) {
 								if (r + m > 0 && r + m < input_height && c + n > 0 && c + n < input_width) {
@@ -133,7 +129,7 @@ double serial_thresholding_and_suppression(int *dev_output, int input_width, int
 	return time_spent;
 }
 
-void edge_detect(int *edges_out, int *image, int image_width, int image_height, int high_threshold, int low_threshold) {
+void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image_width, int image_height, int high_threshold, int low_threshold) {
 	// Sobel filter
 	int kernel_size = 3;
 	int sobel_out_width = image_width + kernel_size - 1;
@@ -147,14 +143,12 @@ void edge_detect(int *edges_out, int *image, int image_width, int image_height, 
 //	printf("=====HORIZONTAL PARTIAL DIFFERENTIATION=====\n");
 	int gx_horizontal[3] = {1, 0, -1};
 	int gx_vertical[3] = {1, 2, 1};
-	static int *gx_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	separable_convolve(gx_out, image, sobel_out_width, sobel_out_height, gx_horizontal, gx_vertical, 3, 1);
 	
 	// Vertical direction
 //	printf("=====VERTICAL PARTIAL DIFFERENTIATION=====\n");
 	int gy_horizontal[3] = {1, 2, 1};
 	int gy_vertical[3] = {1, 0, -1};
-	static int *gy_out = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);
 
 	// Magnitude and thresholding
