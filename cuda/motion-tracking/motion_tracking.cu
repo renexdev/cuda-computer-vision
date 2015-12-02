@@ -22,7 +22,7 @@ void spatial_difference_density_map(double *density_map, int *difference, int wi
 	int vertical_block_size = height/vertical_divisions;
 	int block_size = horizontal_block_size * vertical_block_size;
 	
-	const int scaling_factor = 1000; // Used to linearly scale density map to units millipixels/pixels^2 (if that makes any sense?)
+	const int scaling_factor = 1000;  // Used to linearly scale density map to units millipixels/pixels^2 (if that makes any sense?)
 	
 	for (int block_x_index = 0; block_x_index < horizontal_divisions; block_x_index++) {
 		for (int block_y_index = 0; block_y_index < vertical_divisions; block_y_index++) {
@@ -112,7 +112,7 @@ double serial_difference_filter(int *difference, int *edges_1, int *edges_2, int
     return time_spent;
 }
 
-void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2, int width, int height, int movement_threshold, int motion_threshold) {
+void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2, int width, int height, int movement_threshold, int motion_threshold, int horizontal_divisions, int vertical_divisions) {
 	// Note: movement_threshold refers to the pixel apron around which the difference filter attempts to look for differences.
 	// Higher movement_threshold == more leniency in how much camera shake is tolerated
 	// motion_threshold refers to the minimum spatial pixel difference density required for a particular segment of the difference to be registered as motion.
@@ -157,28 +157,57 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
     checkCudaErrors(cudaFree(dev_edges_2));
     
     // Determine spatial density map
-    int horizontal_divisions = 12, vertical_divisions = 10;
 	double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
 	spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
 	
 	// Estimate motion area
 	motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
+	
+	// Free allocated host memory
+	free(density_map);
 
 //    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent);
 }
 
 int main() {
 	// Config constants
-	double movement_threshold = 10.0;
-	int motion_threshold = 5;
+	double movement_threshold = 10.0;  // Camera shake tolerance
+	int motion_threshold = 5;  // Threshold above which motion is registered
+	int edge_detect_high_threshold = 70;
+	int edge_detect_low_threshold = 50;
+	int horizontal_divisions = 12;
+	int vertical_divisions = 10;
 	
+	// Initialize windows
 	namedWindow("Input", WINDOW_NORMAL);
 	namedWindow("Difference", WINDOW_NORMAL);
+	namedWindow("Edges", WINDOW_NORMAL);
 	namedWindow("Motion", WINDOW_NORMAL);
+	
+	// Initialize video stream
 	VideoCapture cap(0);
+	Mat temp_image;
+	cap >> temp_image;
+	
+	// Allocate host memory
+	// Do it all here so as to prevent new allocations happening during the infinite loop below
+	int *edges_1 = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	int *edges_2 = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	int *gx_out = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	int *gy_out = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	int *x_1 = (int *)malloc(temp_image.cols * temp_image.rows * sizeof(int));
+	int *x_2 = (int *)malloc(temp_image.cols * temp_image.rows * sizeof(int));
+	int *gaussian_out_1 = (int *)malloc((temp_image.cols + 2) * (temp_image.rows + 2) * sizeof(int));
+	int *gaussian_out_2 = (int *)malloc((temp_image.cols + 2) * (temp_image.rows + 2) * sizeof(int));
+	int *difference = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	int *motion_area = (int *)malloc((temp_image.cols + 4) * (temp_image.rows + 4) * sizeof(int));
+	
+	// Infinite loop; real-time motion detection
 	for (;;) {
+		// Start time counter for approximating FPS
 		struct timeval tv1, tv2;
 		gettimeofday(&tv1, NULL);
+		
 		// Continuously read two frames at a time from external camera
 		Mat image_1, image_2;
 		Mat frame_1, frame_2;
@@ -188,10 +217,6 @@ int main() {
 		cvtColor(frame_2, image_2, COLOR_BGR2GRAY);
 		int input_width = image_1.cols;
 		int input_height = image_1.rows;
-		int *x_1 = (int *)malloc(input_width * input_height * sizeof(int));
-		int *x_2 = (int *)malloc(input_width * input_height * sizeof(int));
-		int *gaussian_out_1 = (int *)malloc((input_width + 2) * (input_height + 2) * sizeof(int));
-		int *gaussian_out_2 = (int *)malloc((input_width + 2) * (input_height + 2) * sizeof(int));
 		for (int i = 0; i < input_height; i++) {
 			for (int j = 0; j < input_width; j++) {
 				x_1[i * image_1.cols + j] = image_1.at<uchar>(i, j);
@@ -211,18 +236,13 @@ int main() {
 		int gaussian_out_height = image_1.rows + kernel_size - 1;
 		
 		// Edge detect
-		int high_threshold = 70, low_threshold = 50;
 		int sobel_out_width = gaussian_out_width + kernel_size - 1;
 		int sobel_out_height = gaussian_out_height + kernel_size - 1;
-		static int *edges_1 = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		static int *edges_2 = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		edge_detect(edges_1, gaussian_out_1, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
-		edge_detect(edges_2, gaussian_out_2, gaussian_out_width, gaussian_out_height, high_threshold, low_threshold);
+		edge_detect(edges_1, gx_out, gy_out, gaussian_out_1, gaussian_out_width, gaussian_out_height, edge_detect_high_threshold, edge_detect_low_threshold);
+		edge_detect(edges_2, gx_out, gy_out, gaussian_out_2, gaussian_out_width, gaussian_out_height, edge_detect_high_threshold, edge_detect_low_threshold);
 	
 		// Motion detect
-		int *difference = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		int *motion_area = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
-		motion_detect(motion_area, difference, edges_1, edges_2, sobel_out_width, sobel_out_height, movement_threshold, motion_threshold);
+		motion_detect(motion_area, difference, edges_1, edges_2, sobel_out_width, sobel_out_height, movement_threshold, motion_threshold, horizontal_divisions, vertical_divisions);
 		
 		// Display output
 		for (int i = 0; i < input_height * input_width; i++) {
@@ -231,14 +251,14 @@ int main() {
 			x_1[i] = 255 * x_1[i];
 			difference[i] = 255 * difference[i];
 			motion_area[i] = 255 * motion_area[i];
+			edges_1[i] = 255 * edges_1[i];
 		}
 		Mat frame_image_1(input_height, input_width, CV_32SC1, x_1);
-		Mat frame_image_2(input_height, input_width, CV_32SC1, x_2);
 		Mat edges_image_1(sobel_out_height, sobel_out_width, CV_32SC1, edges_1);
-		Mat edges_image_2(sobel_out_height, sobel_out_width, CV_32SC1, edges_2);
 		Mat difference_image(sobel_out_height, sobel_out_width, CV_32SC1, difference);
 		Mat motion_area_image(sobel_out_height, sobel_out_width, CV_32SC1, motion_area);
 		imshow("Input", frame_image_1);
+		imshow("Edges", edges_image_1);
 		imshow("Difference", difference_image);
 		imshow("Motion", motion_area_image);
 		if (waitKey(30) >= 0)
