@@ -6,8 +6,31 @@
 \usepackage{amsfonts}
 \usepackage{graphicx}
 \usepackage{tabularx}
+\usepackage{listings}
 \usepackage{float}
+\usepackage{color}
 \usepackage{bm}
+
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+	language=C,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=none,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3
+}
 
 
 \begin{document}
@@ -50,10 +73,16 @@ The filtering necessary in steps (1) and (2) from our algorithm above involve th
 	\label{2d-naive-convolution}
 	y[m, n] = x[m, n] * h[m, n] = \sum_{i = -\infty}^{\infty} \sum_{j = -\infty}^{\infty} h[i, j] x[m - i, n - j]
 \end{equation}
-For an image of size $M$ x $N$ and kernel of size $k$, a direct implementation would require $O(MNk^2)$ time, which is infeasible for a real-time implementation. Instead, it is possible to exploit the separable property of certain convolution matrices $h$, e.g. that $h$ can be represented as the product of two one-dimensional matrices $h_1$ and $h_2$. This effectively reduces our two-dimensional convolution of \eqref{2d-naive-convolution} to two separate instances of one-dimensional convolution:
-$$y[m, n] = h_1[n] * (h_2[m] * x[m, n])$$
+For an image of size $M$ x $N$ and kernel of size $k$, a direct implementation would require $O(MNk^2)$ time, which is infeasible for a real-time implementation. Instead, it is possible to exploit the separable property of certain convolution matrices $h$, e.g. that $h$ can be represented as the product of two one-dimensional matrices $h_1$ and $h_2$. This effectively reduces our two-dimensional convolution of Equation \eqref{2d-naive-convolution} to two separate instances of one-dimensional convolution:
+\begin{equation}
+	\label{separable-convolution-definition}
+	y[m, n] = h_1[n] * (h_2[m] * x[m, n])
+\end{equation}
 which is implemented as
-$$y[m, n] = \sum_{i = -\infty}^{\infty}h_1[i] \sum_{j = -\infty}^{\infty}h_2[j] x[m - i, n - j]$$
+\begin{equation}
+	\label{separable-convolution-formula}
+	y[m, n] = \sum_{i = -\infty}^{\infty}h_1[i] \sum_{j = -\infty}^{\infty}h_2[j] x[m - i, n - j]
+\end{equation}
 For the same $M$ x $N$ input and square kernel of size $k$, a separable implementation reduces the computational complexity to $O(MNk)$. By comparison, an implementation using the FFT would cost $O(MN\log{MN})$. In practice, consider the following results\footnote{Results were obtained by measuring the execution time of a MATLAB script on an Intel Core i7 4790K @ 4.7 GHz.} for a convolution of a $3$ x $3$ kernel with an image of size $2500$ x $2500$:
 \begin{table}[H]
 	\small
@@ -263,8 +292,62 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 \end{algorithm}
 
 \subsection{GPU Parallelization and CUDA Implementation}
-We begin with a parallelized implementation of separable convolution, since the same operation is applied for both the initial Gaussian low pass filter
+We begin with a parallelized implementation of separable convolution, since the same convolution operation is applied for both the initial Gaussian low pass filter and the edge detecting Sobel filter. Our parallel implementation involves first independently computing the convolution with the horizontal filter ($h_2$ in Equation \eqref{separable-convolution-definition}), then convolving that result with the vertical filter $h_1$. In computing the output $y[m, n]$ at every index $(i, j)$, we launch a kernel with 16 threads per block, where the total number of blocks along one dimension is equal to the size of that dimension divided by 16. For our 5312 x 2988 test images, this corresponds to 332 blocks in the horizontal direction and 186 blocks in the vertical direction, each with 16 computational threads.
+\begin{lstlisting}[
+	caption=Grid configuration for the separable convolution device kernel,
+	label=grid-configuration
+]
+#define TX 16
+#define TY 16
 
+dim3 block_size(TX, TY);
+int bx_horizontal = horizontal_convolution_width/block_size.x;
+int by_horizontal = horizontal_convolution_height/block_size.y;
+dim3 grid_size_horizontal = dim3(bx_horizontal, by_horizontal);
+int bx_vertical = vertical_convolution_width/block_size.x;
+int by_vertical = vertical_convolution_height/block_size.y;
+dim3 grid_size_vertical = dim3(bx_vertical, by_vertical);
+
+horizontal_convolve<<<grid_size_horizontal, block_size>>>(...);
+vertical_convolve<<<grid_size_vertical, block_size>>>(...);
+\end{lstlisting}
+\par The convolution on the device executes only one serial loop across the dimensions of the filter exactly as it is defined in Equation \eqref{separable-convolution-formula}. This sum is then stored in the output array\footnote{In our implementation, we represent a two-dimensional image as a one-dimensional array by directly concatenating the rows of the matrix into a single array. Thus, for a matrix of size $M$ x $N$, the index $(i, j)$ would correspond to index $Ni + j$ in our one-dimensional array.} according to the block index, block size, and thread index. The implementation is modularized so that any separable filter can be applied to an input matrix.
+\begin{lstlisting}[
+	caption=Implementation of horizontal and vertical separated convolution,
+	label=separable-convolution-implementation
+]
+__global__ void horizontal_convolve(int *d_out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
+    const int r = blockIdx.y * blockDim.y + threadIdx.y;
+    const int c = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = r * (x_width + h_width - 1) + c;
+    
+    int sum = 0;
+    for (int j = 0; j < h_width; j++) {
+        int p = x_width*r + c - j;
+        if (c - j >= 0 && c - j < x_width) {
+            sum += h[j] * x[p];
+        }
+    }
+    d_out[i] = sum;
+    __syncthreads();
+}
+
+__global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x_height, int h_width, int h_height, double constant_scalar) {
+	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+	const int c = blockIdx.x * blockDim.x + threadIdx.x;
+	const int i = r * x_width + c;
+
+    int sum = 0;
+    for (int j = 0; j < h_height; j++) {
+        int p = x_width*(r - j) + c;
+        if (r - j >= 0 && r - j < x_height) {
+            sum += h[j] * x[p];
+        }
+    }
+    d_out[i] = (int)(constant_scalar * (double)sum);
+    __syncthreads();
+}
+\end{lstlisting}
 
 \section{Motion Detection Algorithm}
 Our motion detection algorithm compares the edges from two frames temporally separated by a small interval of time and attempts to estimate regions of the frame that exhibit movement or motion. This process is then repeated continuously to provide a real-time visualization of the regions of movement in a continuous video stream. The motion detection algorithm we present is composed of the following steps:
@@ -358,6 +441,18 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 0 & \textnormal{otherwise}
 \end{cases}
 \]
+\begin{figure}[]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_difference_density.jpg}
+	\caption{Spatial difference density matrix $\boldsymbol{D}'$ (visualized in three dimensions) of Figure \ref{desk-difference}, as determined by Algorithm \ref{difference-density-matrix-algorithm} with parameters $m = 10$, $n = 6$, and $\Gamma = 0.01$}
+    \label{desk-difference-density}
+\end{figure}
+\begin{figure}[]
+	\centering
+	\includegraphics[width=0.45\textwidth]{desk_motion_area.jpg}
+	\caption{Final estimate of motion area of Figures \ref{desk-1-original} and \ref{desk-2-original} based on the density map of Figure \ref{desk-difference-density}}
+    \label{desk-difference-density}
+\end{figure}
 \begin{algorithm}[]
 	\smaller
 	\label{difference-density-matrix-algorithm}
@@ -394,7 +489,16 @@ Placeholder text
 \section{Conclusion}
 Placeholder text
 
+\section*{Team}
+\begin{itemize}
+	\item \textbf{Emilio Del Vechhio}, Electrical and Computer Engineering `18
+	\item \textbf{Kevin Lin}, Electrical and Computer Engineering `18
+	\item \textbf{Senthil Natarjan}, Electrical and Computer Engineering `17
+\end{itemize}
+
 \section*{Acknowledgments}
-Placeholder text
+\begin{itemize}
+	\item \textbf{CJ Barberan}, Ph.D. student, Rice University Electrical and Computer Engineering---\textit{for mentoring the entire team in the conception, development, and extensive debugging of our project}.
+\end{itemize}
 
 \end{document}
