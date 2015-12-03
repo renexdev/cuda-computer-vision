@@ -77,7 +77,7 @@ double serial_separable_convolve(int *out, int *x, int *horizontal_filter, int *
     return time_spent;
 }
 
-double serial_convolve(int *out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
+double serial_naive_convolve(int *out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
     struct timeval tv1, tv2;
     gettimeofday(&tv1, NULL);
     for (int m = 0; m < x_height + h_height - 1; m++) {
