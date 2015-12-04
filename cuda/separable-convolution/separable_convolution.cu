@@ -45,9 +45,7 @@ __global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x
     __syncthreads();
 }
 
-double serial_separable_convolve(int *out, int *x, int *horizontal_filter, int *vertical_filter, int x_width, int x_height, int horizontal_filter_width, int vertical_filter_height, double constant_scalar) {
-    struct timeval tv1, tv2;
-    gettimeofday(&tv1, NULL);
+void serial_separable_convolve(int *out, int *x, int *horizontal_filter, int *vertical_filter, int x_width, int x_height, int horizontal_filter_width, int vertical_filter_height, double constant_scalar) {
     int *horizontal_out = (int *)malloc((x_width + horizontal_filter_width - 1) * x_height * sizeof(int));
     for (int m = 0; m < x_height; m++) {
         for (int n = 0; n < x_width + horizontal_filter_width - 1; n++) {
@@ -71,15 +69,9 @@ double serial_separable_convolve(int *out, int *x, int *horizontal_filter, int *
             out[v_m * (x_width + horizontal_filter_width - 1) + v_n] = (int)(constant_scalar * (double)v_sum);
         }
     }
-    gettimeofday(&tv2, NULL);
-    double time_spent = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    printf ("Serial separated convolution execution time: %f seconds\n", time_spent);
-    return time_spent;
 }
 
-double serial_naive_convolve(int *out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
-    struct timeval tv1, tv2;
-    gettimeofday(&tv1, NULL);
+void serial_naive_convolve(int *out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
     for (int m = 0; m < x_height + h_height - 1; m++) {
         for (int n = 0; n < x_width + h_width - 1; n++) {
             int sum = 0;
@@ -93,10 +85,6 @@ double serial_naive_convolve(int *out, int *x, int *h, int x_width, int x_height
             out[m * (x_width + h_width - 1) + n] = sum;
         }
     }
-    gettimeofday(&tv2, NULL);
-    double time_spent = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-    printf ("Serial naive convolution execution time: %f seconds\n", time_spent);
-    return time_spent;
 }
 
 void separable_convolve(int *output, int *x, int x_width, int x_height, int *horizontal_filter, int *vertical_filter, int kernel_size, double constant_scalar) {
