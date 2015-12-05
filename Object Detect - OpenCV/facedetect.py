@@ -1,10 +1,11 @@
 import sys
 import cv2
+import datetime as dt
 
 cascade = '/Users/Senthil/Documents/elec-301/Object Detect - OpenCV/haarcascade_frontalface_default.xml'
 faceCascade = cv2.CascadeClassifier(cascade)
 
-image1 = '/Users/Senthil/Documents/elec-301/images/senthil1.jpg'
+image1 = '/Users/Senthil/Documents/elec-301/images/friends1.jpg'
 
 def faceDetectWebcam():
 
@@ -35,17 +36,27 @@ def faceDetectWebcam():
     cv2.destroyAllWindows()
 
 
-def faceDetectTiming(images, display = False):
+#train classifiers
+
+def faceDetectTiming(images):
     image = cv2.imread(images)
+
+    start_time = dt.datetime.now()
+
     grayImg = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     face = faceCascade.detectMultiScale(
             grayImg,
-            scaleFactor = 1.2,
+            scaleFactor = 1.1,
             minNeighbors = 5,
             minSize = (30,30),
             flags = cv2.CASCADE_SCALE_IMAGE
         )
+
+    end_time = dt.datetime.now()
+    time = (end_time-start_time).microseconds
+
+    print("detected in:" + " " + str(time) + "ms")
 
     for (x, y, w, h) in face:
         cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
