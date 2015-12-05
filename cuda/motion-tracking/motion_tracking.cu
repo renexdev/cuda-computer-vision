@@ -39,6 +39,22 @@ void spatial_difference_density_map(double *density_map, int *difference, int wi
 	}
 }
 
+__global__ void gpu_spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
+	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+	const int c = blockIdx.x * blockDim.x + threadIdx.x;
+	const int i = r * width + c;
+	
+	int horizontal_block_size = width/horizontal_divisions;
+	int vertical_block_size = height/vertical_divisions;
+	int block_size = horizontal_block_size * vertical_block_size;
+	
+	const int scaling_factor = 1000;
+	
+	if (difference[i] == 255) {
+		density_map[(int)(vertical_divisions*r/(double)height) * width + (int)(horizontal_divisions*c/(double)width)] += scaling_factor/(double)block_size;
+	}
+}
+
 void motion_area_estimate(int *motion_area, double *density_map, int width, int height, int horizontal_divisions, int vertical_divisions, double threshold) {
 	int horizontal_block_size = width/horizontal_divisions;
 	int vertical_block_size = height/vertical_divisions;
@@ -119,10 +135,12 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 	// Lower motion_threshold == more sensitive in picking up motion
 	
     // Allocate space on device
-    int *dev_edges_1, *dev_edges_2, *dev_out;
-    checkCudaErrors(cudaMalloc(&dev_out, width*height*sizeof(int)));
+    int *dev_edges_1, *dev_edges_2, *dev_difference;
     checkCudaErrors(cudaMalloc(&dev_edges_1, width*height*sizeof(int)));
     checkCudaErrors(cudaMalloc(&dev_edges_2, width*height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_difference, width*height*sizeof(int)));
+    double *dev_density;
+    checkCudaErrors(cudaMalloc(&dev_density, horizontal_divisions*vertical_divisions*sizeof(double)));
 
     // Copy host arrays to device
     checkCudaErrors(cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice));
@@ -144,29 +162,34 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 	gettimeofday(&tv1, NULL);
 
 	// Difference filter
-    difference_filter<<<grid_size, block_size>>>(dev_out, dev_edges_1, dev_edges_2, width, height, movement_threshold);
-    checkCudaErrors(cudaMemcpy(difference, dev_out, width * height * sizeof(int), cudaMemcpyDeviceToHost));
+    difference_filter<<<grid_size, block_size>>>(dev_difference, dev_edges_1, dev_edges_2, width, height, movement_threshold);
+    checkCudaErrors(cudaMemcpy(difference, dev_difference, width * height * sizeof(int), cudaMemcpyDeviceToHost));
 
     gettimeofday(&tv2, NULL);
     double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
 //    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
-
-    // Responsible programmer
-    checkCudaErrors(cudaFree(dev_out));
-    checkCudaErrors(cudaFree(dev_edges_1));
-    checkCudaErrors(cudaFree(dev_edges_2));
     
     // Determine spatial density map
 	double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
-	spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
+	gpu_spatial_difference_density_map<<<grid_size, block_size>>>(dev_density, dev_difference, width, height, horizontal_divisions, vertical_divisions);
+	checkCudaErrors(cudaMemcpy(density_map, dev_density, horizontal_divisions * vertical_divisions * sizeof(double), cudaMemcpyDeviceToHost));
+        for (int i = 0; i < horizontal_divisions * vertical_divisions; i++) {
+            printf("%f\n", density_map[i]);
+        }
 	
 	// Estimate motion area
 	motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
 	
+	// Responsible programmer
+	checkCudaErrors(cudaFree(dev_density));
+	checkCudaErrors(cudaFree(dev_difference));
+	checkCudaErrors(cudaFree(dev_edges_1));
+	checkCudaErrors(cudaFree(dev_edges_2));
+	
 	// Free allocated host memory
 	free(density_map);
 
-//    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent);
+//    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent); 
 }
 
 int main() {
