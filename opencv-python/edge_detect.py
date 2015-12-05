@@ -1,11 +1,7 @@
 import cv2
 from matplotlib import pyplot as plt
-from os import listdir, getcwd
-from os.path import join, isfile
 import datetime as dt
 
-images_path = join(getcwd(), '../images')
-images = [f for f in listdir(images_path) if isfile(join(images_path, f))]
 
 def edge_detect(image_path, display=False):
     img = cv2.imread(image_path, 0)
