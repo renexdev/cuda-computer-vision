@@ -73,7 +73,7 @@ The filtering necessary in steps (1) and (2) from our algorithm above involve th
 	\label{2d-naive-convolution}
 	y[m, n] = x[m, n] * h[m, n] = \sum_{i = -\infty}^{\infty} \sum_{j = -\infty}^{\infty} h[i, j] x[m - i, n - j]
 \end{equation}
-For an image of size $M$ x $N$ and kernel of size $k$, a direct implementation would require $O(MNk^2)$ time, which is infeasible for a real-time implementation. Instead, it is possible to exploit the separable property of certain convolution matrices $h$, e.g. that $h$ can be represented as the product of two one-dimensional matrices $h_1$ and $h_2$. This effectively reduces our two-dimensional convolution of Equation \eqref{2d-naive-convolution} to two separate instances of one-dimensional convolution:
+For an image of size $M \times N$ and kernel of size $k$, a direct implementation would require $O(MNk^2)$ time, which is infeasible for a real-time implementation. Instead, it is possible to exploit the separable property of certain convolution matrices $h$, e.g. that $h$ can be represented as the product of two one-dimensional matrices $h_1$ and $h_2$. This effectively reduces our two-dimensional convolution of Equation \eqref{2d-naive-convolution} to two separate instances of one-dimensional convolution:
 \begin{equation}
 	\label{separable-convolution-definition}
 	y[m, n] = h_1[n] * (h_2[m] * x[m, n])
@@ -83,25 +83,49 @@ which is implemented as
 	\label{separable-convolution-formula}
 	y[m, n] = \sum_{i = -\infty}^{\infty}h_1[i] \sum_{j = -\infty}^{\infty}h_2[j] x[m - i, n - j]
 \end{equation}
-For the same $M$ x $N$ input and square kernel of size $k$, a separable implementation reduces the computational complexity to $O(MNk)$. By comparison, an implementation using the FFT would cost $O(MN\log{MN})$. In practice, consider the following results\footnote{Results were obtained by measuring the execution time of a MATLAB script on an Intel Core i7 4790K @ 4.7 GHz.} for a convolution of a $3$ x $3$ kernel with an image of size $2500$ x $2500$:
+For the same $M \times N$ input and square kernel of size $k$, a separable implementation reduces the computational complexity to $O(MNk)$. By comparison, an implementation using the FFT would cost $O(MN\log{MN})$. In practice, consider the separable convolution speed gain evident in the following results\footnote{Results were obtained by measuring the CPU execution time of the convolution algorithms implemented in C on an Intel Core i7 4790K @ 4.7 GHz.} for a convolution of a $3 \times 3$ Gaussian filter kernel with images of varying sizes (visualized in Figure \ref{direct-separated-convolution-graph}).
 \begin{table}[H]
 	\small
 	\centering
-	\caption{Comparison of Computational Complexity of Different Convolution Implementation Algorithms}
+	\caption{Execution Time of Direct 2D Convolution, $O(MNk^2)$}
 	\label{convolution-complexity-comparison}
 	\begin{tabular}{llll}
-	 & Complexity & Execution time (s) \\
-	 Direct convolution & $O(MNk^2)$ & $3$ \\
-	 Separated convolution & $O(MNk)$ & $3$ \\
-	 FFT & $O(MN\log{MN})$ & $3$
+	 Image dimensions & Pixel count ($\times10^6$) & Execution time (s) \\
+	 $100 \times 100$ & $0.01$ & $0.000489$ \\
+	 $500 \times 500$ & $0.25$ & $0.008784$ \\
+	 $1000 \times 1000$ & $1.00$ & $0.034249$ \\
+	 $1500 \times 1500$ & $2.25$ & $0.076803$ \\
+	 $2000 \times 2000$ & $4.00$ & $0.136222$ \\
+	 $2500 \times 2500$ & $6.25$ & $0.212414$ \\
 	\end{tabular}
 \end{table}
+\begin{table}[H]
+	\small
+	\centering
+	\caption{Execution Time of Separated 2D Convolution, $O(MNk)$}
+	\label{convolution-complexity-comparison}
+	\begin{tabular}{llll}
+	 Image dimensions & Pixel count ($\times10^6$) & Execution time (s) \\
+	 $100 \times 100$ & $0.01$ & $0.000279$ \\
+	 $500 \times 500$ & $0.25$ & $0.004768$ \\
+	 $1000 \times 1000$ & $1.00$ & $0.018969$ \\
+	 $1500 \times 1500$ & $2.25$ & $0.042410$ \\
+	 $2000 \times 2000$ & $4.00$ & $0.075280$ \\
+	 $2500 \times 2500$ & $6.25$ & $0.117134$ \\
+	\end{tabular}
+\end{table}
+\begin{figure}
+	\centering
+	\includegraphics[width=0.45\textwidth]{naive_separable_convolution_execution_time.jpg}
+	\caption{Graphical comparison of execution times of direct and separated 2D convolution as a function of the input pixel count}
+    \label{direct-separated-convolution-graph}
+\end{figure}
 As detailed in later sections, we take advantage of the fast computational complexity of separable convolution in our implementation, as all of the filters we apply are separable into one-dimensional matrices.
 
 
 \subsection{Noise Elimination: Two-Dimensional Gaussian Filtering}
 The first task in our edge detection algorithm is denoising the input in order to reduce the amount of high-frequency content in the image by as much as possible without destroying critical information points in the image (e.g. the real edges). We filter out high-frequency noise so that random noise is not mistakenly interpreted as an edge, as edges correspond to points in the image where the gradient has an above-threshold magnitude. \par
-For example, consider the $5312$ x $2988$ pixel image (taken at a high ISO to deliberately introduce noise) of Figure \ref{noisy-image} and a plot of its grayscale intensity versus the image's spatial dimensions in Figure \ref{noisy-image-mesh}. It is clear from the mesh that there is much high-frequency noise, which can be removed with a low-pass filter.
+For example, consider the $5312 \times 2988$ pixel image (taken at a high ISO to deliberately introduce noise) of Figure \ref{noisy-image} and a plot of its grayscale intensity versus the image's spatial dimensions in Figure \ref{noisy-image-mesh}. It is clear from the mesh that there is much high-frequency noise, which can be removed with a low-pass filter.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{noisy_image.jpg}
@@ -120,7 +144,7 @@ For example, consider the $5312$ x $2988$ pixel image (taken at a high ISO to de
 	\caption{FFT magnitude of unfiltered noisy image at each pixel (log scale)}
     \label{noisy-image-fft}
 \end{figure}
-To low-pass filter our image, we apply a discrete Gaussian filter. Generally, a Gaussian blur kernel of size $2n + 1$ x $2n + 1$ ($\forall n \in \mathbb{Z}^+$, and with parameter $\sigma$) is given by
+To low-pass filter our image, we apply a discrete Gaussian filter. Generally, a Gaussian blur kernel of size $2n + 1 \times 2n + 1$ ($\forall n \in \mathbb{Z}^+$, and with parameter $\sigma$) is given by
 $$h[i, j] = \frac{1}{2\pi \sigma^2}e^{-\frac{(i - k - 1)^2 + (j - k - 1)^2}{2\sigma^2}}$$
 Our implementation of Gaussian filtering uses the constant-sized ($k = 3$), constant-$\sigma$ kernel
 \[
@@ -132,17 +156,18 @@ h[i, j] = \frac{1}{16}
 \end{bmatrix}
 \]
 This kernel is implemented separably as
-\[
-h[i, j] = \frac{1}{16}
-\begin{bmatrix}
-	1 & 2 & 1
-\end{bmatrix}
-*
-\begin{bmatrix}
-	1 \\ 2 \\ 1
-\end{bmatrix}
-\] \par
-Applying a Gaussian filter with parameters $k = 5$ and $\sigma = 5$ to the above image significantly denoises the image without sacrificing edge precision, which can be seen from the spatial intensity plot in Figure \ref{filtered-noisy-image-mesh}.
+\begin{equation}
+	\label{gaussian-filter}
+	h[i, j] = \frac{1}{16}
+	\begin{bmatrix}
+		1 & 2 & 1
+	\end{bmatrix}
+	*
+	\begin{bmatrix}
+		1 \\ 2 \\ 1
+	\end{bmatrix}
+\end{equation}
+\par Applying a Gaussian filter with parameters $k = 5$ and $\sigma = 5$ to the above image significantly denoises the image without sacrificing edge precision, which can be seen from the spatial intensity plot in Figure \ref{filtered-noisy-image-mesh}.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{filtered_noisy_image.jpg}
@@ -193,28 +218,30 @@ $$G_y = \frac{\partial \boldsymbol{A}}{\partial y}\Bigr|_{\substack{(x, y) = (i,
 \end{bmatrix} * \boldsymbol{A}
 \]
 Like our Gaussian kernel, the Sobel operator (in both the $x$ and $y$ directions) is separable:
-\[
-\boldsymbol{G_x} =
-\begin{bmatrix}
-	1 \\
-	2 \\
-	1
-\end{bmatrix} * 
-(\begin{bmatrix}
-	1 & 0 & -1
-\end{bmatrix} * \boldsymbol{A})
-\]
-\[
-\boldsymbol{G_y} =
-\begin{bmatrix}
-	1 \\
-	0 \\
-	-1
-\end{bmatrix} * 
-(\begin{bmatrix}
-	1 & 2 & 1
-\end{bmatrix} * \boldsymbol{A})
-\]
+\begin{equation}
+	\label{horizontal-sobel-filter}
+	\boldsymbol{G_x} =
+	\begin{bmatrix}
+		1 \\
+		2 \\
+		1
+	\end{bmatrix} * 
+	(\begin{bmatrix}
+		1 & 0 & -1
+	\end{bmatrix} * \boldsymbol{A})
+\end{equation}
+\begin{equation}
+	\label{vertical-sobel-filter}
+	\boldsymbol{G_y} =
+	\begin{bmatrix}
+		1 \\
+		0 \\
+		-1
+	\end{bmatrix} * 
+	(\begin{bmatrix}
+		1 & 2 & 1
+	\end{bmatrix} * \boldsymbol{A})
+\end{equation}
 \par Thus, we perform two separable convolutions with the separated Sobel filter on the Gaussian-filtered image to obtain gradients in the horizontal and vertical directions, and determine the magnitude and angle matrices $\boldsymbol{G}$ and $\boldsymbol{\theta}$ from equations \eqref{gradient-magnitude} and \eqref{gradient-angle}.
 \begin{figure}[h]
 	\centering
@@ -262,7 +289,7 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 	\caption{Non-maximum suppression and selective thresholding: pseudocode for a serial, CPU implementation}
 	
 	\KwIn{Gradient magnitude matrix $\boldsymbol{G}_{i, j}$ and gradient angle matrix $\boldsymbol{\theta}_{i, j}$ for an image $\boldsymbol{A}_{i, j}$, $\forall i \in [0, M - 1], \forall j \in [0, N - 1]$, $\alpha$ (representing the size of the box around which to apply selective thresholding), $t_h$ (the high threshold), and $t_l$ (the low threshold)}
-	\KwOut{Edge matrix $\boldsymbol{E}$ of dimensions $M$ x $N$ that represent the edges of $\boldsymbol{A}$; any entry $\boldsymbol{E}_{i, j}$ is $255$ if an edge is present, and $0$ if an edge is not present}
+	\KwOut{Edge matrix $\boldsymbol{E}$ of dimensions $M \times N$ that represent the edges of $\boldsymbol{A}$; any entry $\boldsymbol{E}_{i, j}$ is $255$ if an edge is present, and $0$ if an edge is not present}
 	
 	\nl Initialize $\boldsymbol{E}$ to 0 $\forall i \in [0, M - 1], \forall j \in [0, N - 1]$\;
 	\nl \ForEach {$i \in [\alpha + 1, M - \alpha - 2]$} {
@@ -311,7 +338,7 @@ dim3 grid_size_vertical = dim3(bx_vertical, by_vertical);
 horizontal_convolve<<<grid_size_horizontal, block_size>>>(...);
 vertical_convolve<<<grid_size_vertical, block_size>>>(...);
 \end{lstlisting}
-\par The convolution on the device executes only one serial loop across the dimensions of the filter exactly as it is defined in Equation \eqref{separable-convolution-formula}. This sum is then stored in the output array\footnote{In our implementation, we represent a two-dimensional image as a one-dimensional array by directly concatenating the rows of the matrix into a single array. Thus, for a matrix of size $M$ x $N$, the index $(i, j)$ would correspond to index $Ni + j$ in our one-dimensional array.} according to the block index, block size, and thread index. The implementation is modularized so that any separable filter can be applied to an input matrix.
+\par The convolution on the device executes only one serial loop across the dimensions of the filter exactly as it is defined in Equation \eqref{separable-convolution-formula}. This sum is then stored in the output array\footnote{In our implementation, we represent a two-dimensional image as a one-dimensional array by directly concatenating the rows of the matrix into a single array. Thus, for a matrix of size $M \times N$, the index $(i, j)$ would correspond to index $Ni + j$ in our one-dimensional array.} according to the block index, block size, and thread index. The implementation is modularized so that any separable filter can be applied to an input matrix.
 \begin{lstlisting}[
 	caption=Implementation of horizontal and vertical separated convolution,
 	label=separable-convolution-implementation
@@ -348,6 +375,97 @@ __global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x
     __syncthreads();
 }
 \end{lstlisting}
+\par The first stage of our edge detection algorithm uses the separable convolution GPU implementation above to apply a Gaussian low-pass filter in Equation \ref{gaussian-filter} to remove high-frequency noise from the image that might be falsely labeled as an edge. Then, the same separable convolution kernel is used to apply the Sobel edge filter of Equations \ref{horizontal-sobel-filter} and \ref{vertical-sobel-filter} to the Gaussian low pass-filtered image in both the horizontal and vertical directions to approximate the horizontal and vertical partial derivatives, respectively. In order to reduce redundancy in computation, the final stage of non-maximum suppression and selective thresholding is separated into two tasks, each of which is implemented in parallel:
+\begin{enumerate}
+	\item Calculate the gradient magnitude matrix $\boldsymbol{G}$ and gradient angle matrix $\boldsymbol{\theta}$
+	\item Implement Algorithm \ref{non-maximum-suppression-selective-thresholding-algorithm} with the inputs $\boldsymbol{G}$ and $\boldsymbol{\theta}$ calculated above
+\end{enumerate}
+\begin{lstlisting}[
+	caption=GPU computation of gradient magnitude and angle,
+	label=gradient-magnitude-angle-implementation
+]
+__global__ void gradient_magnitude_and_direction(
+		double *dev_magnitude_output,
+		double *dev_angle_output
+		int input_width,
+		int input_height,
+		int *g_x,
+		int *g_y
+	) {
+	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+	const int c = blockIdx.x * blockDim.x + threadIdx.x;
+	const int i = r * (input_width + 2) + c;
+	
+	dev_magnitude_output[i] = sqrt(pow((double)g_x[i], 2) + pow((double)g_y[i], 2));
+	dev_angle_output[i] = atan2((double)g_y[i], (double)g_x[i]);
+}
+\end{lstlisting}
+Following completion of the computation of Listing \ref{gradient-magnitude-angle-implementation}, the result is input to our implementation of Algorithm \ref{non-maximum-suppression-selective-thresholding-algorithm}. While each of these two tasks operates in parallel (e.g. that each pixel's magnitude/angle or edge property is computed in parallel with the other pixels), the two tasks themselves execute serially. This is due to the fact that the non-maximum suppression and selective thresholding procedure relies on the gradient and angle at each pixel to have already been computed when the algorithm begins. Nonetheless, despite the fact that such serial separation of tasks reduces redundancies in gradient magnitude/angle computations\footnote{Computational redundancy arises from the fact that the non-maximum suppression and selective thresholding procedure needs access to the magnitude and angle of all the pixels in a box of area $\alpha^2$ centered at the current pixel. Calculating these properties directly for each pixel during the algorithm will result in calculation of the same magnitude and angle for the same pixel multiple times.}, further optimization is possible to reduce the amount of time that any thread is idle (which occurs after a particular pixel's gradient magnitude/angle is computed but before its edge property is computed).
+\begin{lstlisting}[
+	caption=GPU non-maximum suppression and selective thresholding,
+	label=non-maximum-suppression-selective-thresholding-implementation
+]
+__global__ void thresholding_and_suppression(
+	int *dev_output,
+	double *dev_magnitude,
+	double *dev_angle,
+	int input_width,
+	int input_height,
+	int *g_x,
+	int *g_y,
+	int high_threshold,
+	int low_threshold
+) {
+	const int r = blockIdx.y * blockDim.y + threadIdx.y;
+	const int c = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = r * (input_width + 2) + c;
+
+    // First, initialize the current pixel to zero (non-edge)
+    dev_output[i] = 0;
+    // Boundary conditions
+    if (r > 1 && c > 1 && r < input_height - 1 && c < input_width - 1) {
+        double magnitude = dev_magnitude[i];
+        if (magnitude > high_threshold) {
+        	// Non-maximum suppression: determine magnitudes in the surrounding pixel and the gradient direction of the current pixel
+        	double magnitude_above = dev_magnitude[(r - 1) * input_width + c];
+			double magnitude_below = dev_magnitude[(r + 1) * input_width + c];
+			double magnitude_left = dev_magnitude[r * input_width + c - 1];
+			double magnitude_right = dev_magnitude[r * input_width + c + 1];
+			double magnitude_upper_right = dev_magnitude[(r + 1) * input_width + c + 1];
+			double magnitude_upper_left = dev_magnitude[(r + 1) * input_width + c - 1];
+			double magnitude_lower_right = dev_magnitude[(r - 1) * input_width + c + 1];
+			double magnitude_lower_left = dev_magnitude[(r - 1) * input_width + c - 1];
+			double theta = dev_angle[i];
+		
+			// Check if the current pixel is a ridge pixel, e.g. maximized in the gradient direction
+			int vertical_check = (M_PI/3.0 < theta && theta < 2.0*M_PI/3.0) || (-2.0*M_PI/3.0 < theta && theta < -M_PI/3.0);
+			int is_vertical_max = vertical_check && magnitude > magnitude_below && magnitude > magnitude_above;
+			int horizontal_check = (-M_PI/6.0 < theta && theta < M_PI/6.0) || (-M_PI < theta && theta < -5.0*M_PI/6.0) || (5*M_PI/6.0 < theta && theta < M_PI);
+			int is_horizontal_max = horizontal_check && magnitude > magnitude_right && magnitude > magnitude_left;
+	        int positive_diagonal_check = (theta > M_PI/6.0 && theta < M_PI/3.0) || (theta < -2.0*M_PI/3.0 && theta > -5.0*M_PI/6.0);
+			int is_positive_diagonal_max = positive_diagonal_check && magnitude > magnitude_upper_right && magnitude > magnitude_lower_left;
+			int negative_diagonal_check = (theta > 2.0*M_PI/3.0 && theta < 5.0*M_PI/6.0) || (theta < -M_PI/6.0 && theta > -M_PI/3.0);
+			int is_negative_diagonal_max = negative_diagonal_check && magnitude > magnitude_lower_right && magnitude > magnitude_upper_left;
+		
+			// Consider a surrounding apron around the current pixel to catch potentially disconnected pixel nodes
+			int apron_size = 2;
+			if (is_vertical_max || is_horizontal_max || is_positive_diagonal_max || is_negative_diagonal_max) {
+				dev_output[i] = 255;
+				for (int m = -apron_size; m <= apron_size; m++) {
+					for (int n = -apron_size; n <= apron_size; n++) {
+						if (r + m > 0 && r + m < input_height && c + n > 0 && c + n < input_width) {
+							if (dev_magnitude[(r + m) * input_width + c + n] > low_threshold) {
+								dev_output[(r + m) * input_width + c + n] = 255;
+							}
+						}
+					}
+				}
+			}
+		}
+    }
+}
+\end{lstlisting}
+
 
 \section{Motion Detection Algorithm}
 Our motion detection algorithm compares the edges from two frames temporally separated by a small interval of time and attempts to estimate regions of the frame that exhibit movement or motion. This process is then repeated continuously to provide a real-time visualization of the regions of movement in a continuous video stream. The motion detection algorithm we present is composed of the following steps:
@@ -368,7 +486,7 @@ The preliminary requirement in determining areas of motion from two frames is a 
 	0 & \boldsymbol{E}_{1_{i, j}} = \boldsymbol{E}_{2_{i, j}}
 \end{cases}
 \]
-Then, for each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference matrix $\boldsymbol{D}$ is created by considering a box of constant size $\beta$ x $\beta$ around that pixel and suppressing the value of the surrounding pixels to 0 if its value matches that at $\boldsymbol{D}_{0_{i, j}}$. This step is designed to reduce false positives of motion detection arising from stray movement of the frame (e.g. camera shake). The computation of $\boldsymbol{D}$ is demonstrated in Algorithm \ref{difference-matrix-algorithm}. The output matrix is then used as input to building a spatial difference density map, from which we estimate motion locations.
+Then, for each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference matrix $\boldsymbol{D}$ is created by considering a box of constant size $\beta \times \beta$ around that pixel and suppressing the value of the surrounding pixels to 0 if its value matches that at $\boldsymbol{D}_{0_{i, j}}$. This step is designed to reduce false positives of motion detection arising from stray movement of the frame (e.g. camera shake). The computation of $\boldsymbol{D}$ is demonstrated in Algorithm \ref{difference-matrix-algorithm}. The output matrix is then used as input to building a spatial difference density map, from which we estimate motion locations.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{desk_1.jpg}
@@ -426,9 +544,8 @@ Then, for each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference
 	\
 \end{algorithm}
 
-
 \subsection{Motion Area Estimation via a Spatial Difference Density Map}
-The difference matrix $\boldsymbol{D}$ determined with Algorithm \ref{difference-matrix-algorithm} is effectively a maximally precise estimate of motion area (e.g., to the resolution of a single pixel, since $\boldsymbol{D}$ is computed on a pixel-by-pixel basis). However, in practice, it is more useful to consider general regions of the image around which motion exists. For this reason, we build a density map of the matrix $\boldsymbol{D}$ using equal-sized rectangular sections of the input image that approximates the density of the difference per unit area (units pixels$^2$). Thus, the original $M$ x $N$ difference matrix $\boldsymbol{D}$ is reduced to a matrix $\boldsymbol{D}'$ of size $m$ x $n$ such that
+The difference matrix $\boldsymbol{D}$ determined with Algorithm \ref{difference-matrix-algorithm} is effectively a maximally precise estimate of motion area (e.g., to the resolution of a single pixel, since $\boldsymbol{D}$ is computed on a pixel-by-pixel basis). However, in practice, it is more useful to consider general regions of the image around which motion exists. For this reason, we build a density map of the matrix $\boldsymbol{D}$ using equal-sized rectangular sections of the input image that approximates the density of the difference per unit area (units pixels$^2$). Thus, the original $M \times N$ difference matrix $\boldsymbol{D}$ is reduced to a matrix $\boldsymbol{D}'$ of size $m \times n$ such that
 $$M = k_1 m$$
 $$N = k_2 n$$
 where $k_1, k_2 \in \mathbb{Z}$. Intuitively, choosing a higher $k_1$ and $k_2$ will result in a higher resolution over which the density is evaluated. Selection of $k_1$ and $k_2$ should depend on how large of a region over which motion should be estimated. The upper limits of $k_1$ and $k_2$ are $M$ and $N$, respectively, at which point $\boldsymbol{D}'$ = $\boldsymbol{D}$. Each index $(m, n)$ in $\boldsymbol{D}'$ corresponds to the upper-left corner of a rectangular section of $\boldsymbol{A}$ whose width is $\frac{M}{m}$ and height is $\frac{N}{n}$.
@@ -480,6 +597,9 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 	\nl \Return $\boldsymbol{D}'$\;
 	\
 \end{algorithm}
+
+\subsection{GPU Parallelization and CUDA Implementation}
+Placeholder text
 
 
 \section{GPU Speedup Results}
