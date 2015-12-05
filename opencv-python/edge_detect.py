@@ -3,8 +3,7 @@ from matplotlib import pyplot as plt
 import datetime as dt
 
 
-def edge_detect(image_path, display=False):
-    img = cv2.imread(image_path, 0)
+def edge_detect(img, display=False):
     start_time = dt.datetime.now()
     edges = cv2.Canny(img, 100, 200)
     end_time = dt.datetime.now()
