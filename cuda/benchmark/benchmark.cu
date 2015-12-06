@@ -4,6 +4,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include "../separable-convolution/separable_convolution.h"
+#include "../motion-tracking/motion_tracking.h"
 #include "../edge-detect/edge_detect.h"
 #include "../helper/helper_cuda.h"
 
@@ -152,6 +153,44 @@ void non_maximum_suppression_selective_thresholding_speedup(const char **images,
 	}
 }
 
+void motion_area_estimation_speedup(const char **images, int num_images) {
+	// Uses random matrices for the difference
+	double movement_threshold = 5.0;
+	int motion_threshold = 4;
+	int horizontal_divisions = 5;
+	int vertical_divisions = 5;
+	
+	struct timeval tv1, tv2;
+	
+	for (int image_index = 0; image_index < num_images; image_index++) {
+		Mat raw_image = imread(images[image_index], 0);
+		int *motion_area = (int *)malloc(raw_image.cols * raw_image.rows * sizeof(int));
+		int *difference = (int *)malloc(raw_image.cols * raw_image.rows * sizeof(int));
+		int *edges_1 = (int *)malloc(raw_image.cols * raw_image.rows * sizeof(int));
+		int *edges_2 = (int *)malloc(raw_image.cols * raw_image.rows * sizeof(int));
+		
+		for (int i = 0; i < raw_image.cols * raw_image.rows; i++) {
+			edges_1[i] = rand() % 2;
+			edges_2[i] = rand() % 2;
+		}
+		
+		gettimeofday(&tv1, NULL);
+		motion_detect(motion_area, difference, edges_1, edges_2, raw_image.cols, raw_image.rows, movement_threshold, motion_threshold, horizontal_divisions, vertical_divisions);
+		gettimeofday(&tv2, NULL);
+		double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+		
+		gettimeofday(&tv1, NULL);
+		serial_motion_detect(motion_area, difference, edges_1, edges_2, raw_image.cols, raw_image.rows, movement_threshold, motion_threshold, horizontal_divisions, vertical_divisions);
+		gettimeofday(&tv2, NULL);
+		double serial_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+		
+		printf("Test image: %s\n", images[image_index]);
+		printf("Parallel motion area estimation execution time: %f seconds\n", parallel_computation_time);
+		printf("Serial motion area estimation execution time: %f seconds\n", serial_computation_time);
+		printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
+	}
+}
+
 int main() {
     const char *images[9];
     images[0] = "../../images/city_100_100.jpg";
@@ -163,6 +202,8 @@ int main() {
     images[6] = "../../images/city_5000_5000.jpg";
     images[7] = "../../images/city_6000_6000.jpg";
     images[8] = "../../images/city_7500_7500.jpg";
+    
+    srand(time(NULL));
 	
     printf("==========SERIAL NAIVE VS SEPARABLE CONVOLUTION COMPARISON==========\n");
     compare_naive_separable_convolution(images, 9);
@@ -170,6 +211,8 @@ int main() {
     compare_separable_convolution_speedup(images, 9);
     printf("==========CPU VS GPU NON-MAXIMUM SUPPRESSION AND SELECTIVE THRESHOLDING SPEEDUP==========\n");
     non_maximum_suppression_selective_thresholding_speedup(images, 8);
+    printf("==========CPU VS GPU MOTION AREA ESTIMATION SPEEDUP==========\n");
+    motion_area_estimation_speedup(images, 9);
 
     return 0;
 }
