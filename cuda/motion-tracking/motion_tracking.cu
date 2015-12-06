@@ -60,10 +60,7 @@ __global__ void motion_area_estimate(int *motion_area, double *density_map, int 
 	int i = r * width + c;
 	
 	int density_map_index = (int)(vertical_divisions*r/(double)height) * horizontal_divisions + (int)(horizontal_divisions*c/(double)width);
-	
-	int horizontal_block_size = width/horizontal_divisions;
-	int vertical_block_size = height/vertical_divisions;
-	
+
 	if (density_map[density_map_index] >= threshold) {
 		motion_area[i] = 255;
 	} else {

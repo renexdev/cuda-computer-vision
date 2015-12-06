@@ -152,7 +152,6 @@ void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image
 	separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);
 
 	// Magnitude and thresholding
-//	static int *serial_edges = (int *)malloc(sobel_out_width * sobel_out_height * sizeof(int));
 	int *dev_edges, *dev_gx, *dev_gy;
 	double *dev_magnitude, *dev_angle;
 	
@@ -165,18 +164,7 @@ void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image
 	checkCudaErrors(cudaMemcpy(dev_gx, gx_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
 	checkCudaErrors(cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
 	
-	// Serial comparison
-//	printf("=====THRESHOLDING AND NON-MAXIMUM SUPPRESSION=====\n");
-//	double serial_computation_time = serial_thresholding_and_suppression(serial_edges, sobel_out_width, sobel_out_height, gx_out, gy_out, high_threshold, low_threshold);
-	
-	// Parallelization
-	struct timeval tv1, tv2;
-	gettimeofday(&tv1, NULL);
 	gradient_magnitude_angle_thresholding_and_suppresion(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, dev_edges, edges_out, high_threshold, low_threshold, grid_size, block_size);
-	gettimeofday(&tv2, NULL);
-	double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-//	printf("Parallel thresholding and non-maximum suppression execution time: %f seconds\n", parallel_computation_time);
-//	printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
 
 	// Free GPU memory
 	checkCudaErrors(cudaFree(dev_edges));
