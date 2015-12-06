@@ -72,14 +72,12 @@ __global__ void thresholding_and_suppression(int *dev_output, double *dev_magnit
     }
 }
 
-double serial_thresholding_and_suppression(int *dev_output, int input_width, int input_height, int *g_x, int *g_y, int high_threshold, int low_threshold) {
-	struct timeval tv1, tv2;
-	gettimeofday(&tv1, NULL);
+void serial_thresholding_and_suppression(int *output, int input_width, int input_height, int *g_x, int *g_y, int high_threshold, int low_threshold) {
 	for (int r = 0; r < input_height; r++) {
 		for (int c = 0; c < input_width; c++) {
 			int i = r * input_width + c;
 			// First, initialize the current pixel to zero (non-edge)
-			dev_output[i] = 0;
+			output[i] = 0;
 			// Boundary conditions
 			if (r > 1 && c > 1 && r < input_height - 1 && c < input_width - 1) {
 				double magnitude = sqrt(pow((double)g_x[i], 2) + pow((double)g_y[i], 2));
@@ -108,12 +106,12 @@ double serial_thresholding_and_suppression(int *dev_output, int input_width, int
 					// Consider a surrounding apron around the current pixel to catch potentially disconnected pixel nodes
 					int apron_size = 2;
 					if (is_vertical_max || is_horizontal_max || is_positive_diagonal_max || is_negative_diagonal_max) {
-						dev_output[i] = 255;
+						output[i] = 255;
 						for (int m = -apron_size; m <= apron_size; m++) {
 							for (int n = -apron_size; n <= apron_size; n++) {
 								if (r + m > 0 && r + m < input_height && c + n > 0 && c + n < input_width) {
 									if (sqrt(pow((double)g_x[(r + m) * input_width + c + n], 2) + pow((double)g_y[(r + m) * input_width + c + n], 2)) > low_threshold) {
-										dev_output[(r + m) * input_width + c + n] = 255;
+										output[(r + m) * input_width + c + n] = 255;
 									}
 								}
 							}
@@ -123,10 +121,12 @@ double serial_thresholding_and_suppression(int *dev_output, int input_width, int
 			}
 		}
 	}
-	gettimeofday(&tv2, NULL);
-	double time_spent = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
-	printf ("Serial thresholding and non-maximum suppression execution time: %f seconds\n", time_spent);
-	return time_spent;
+}
+
+void gradient_magnitude_angle_thresholding_and_suppresion(double *dev_magnitude, double *dev_angle, int sobel_out_width, int sobel_out_height, int *dev_gx, int *dev_gy, int *dev_edges, int *edges_out, int high_threshold, int low_threshold, dim3 grid_size, dim3 block_size) {
+	gradient_magnitude_and_direction<<<grid_size, block_size>>>(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy);
+	thresholding_and_suppression<<<grid_size, block_size>>>(dev_edges, dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, high_threshold, low_threshold);
+	checkCudaErrors(cudaMemcpy(edges_out, dev_edges, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyDeviceToHost));
 }
 
 void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image_width, int image_height, int high_threshold, int low_threshold) {
@@ -172,9 +172,7 @@ void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image
 	// Parallelization
 	struct timeval tv1, tv2;
 	gettimeofday(&tv1, NULL);
-	gradient_magnitude_and_direction<<<grid_size, block_size>>>(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy);
-	thresholding_and_suppression<<<grid_size, block_size>>>(dev_edges, dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, high_threshold, low_threshold);
-	checkCudaErrors(cudaMemcpy(edges_out, dev_edges, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyDeviceToHost));
+	gradient_magnitude_angle_thresholding_and_suppresion(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, dev_edges, edges_out, high_threshold, low_threshold, grid_size, block_size);
 	gettimeofday(&tv2, NULL);
 	double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
 //	printf("Parallel thresholding and non-maximum suppression execution time: %f seconds\n", parallel_computation_time);
