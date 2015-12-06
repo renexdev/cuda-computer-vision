@@ -4,8 +4,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include "../separable-convolution/separable_convolution.h"
+#include "../edge-detect/edge_detect.h"
+#include "../helper/helper_cuda.h"
 
 using namespace cv;
+
+#define TX 16
+#define TY 16
 
 
 void compare_naive_separable_convolution(const char **images, int num_images) {
@@ -76,6 +81,77 @@ void compare_separable_convolution_speedup(const char **images, int num_images) 
 	}
 }
 
+void non_maximum_suppression_selective_thresholding_speedup(const char **images, int num_images) {
+	int high_threshold = 70;
+	int low_threshold = 50;
+	
+	for (int image_index = 0; image_index < num_images; image_index++) {
+		Mat raw_image = imread(images[image_index], 0);
+		int *image = (int *)malloc(raw_image.cols * raw_image.rows * sizeof(int));
+		for (int i = 0; i < raw_image.rows; i++) {
+			for (int j = 0; j < raw_image.cols; j++) {
+				image[i * raw_image.cols + j] = raw_image.at<uchar>(i, j);
+			}
+		}
+		
+		int *gx_out = (int *)malloc((raw_image.cols + 4) * (raw_image.rows + 4) * sizeof(int));
+		int *gy_out = (int *)malloc((raw_image.cols + 4) * (raw_image.rows + 4) * sizeof(int));
+		int *edges_out = (int *)malloc((raw_image.cols + 4) * (raw_image.rows + 4) * sizeof(int));
+		
+		int kernel_size = 3;
+		int sobel_out_width = raw_image.cols + kernel_size - 1;
+		int sobel_out_height = raw_image.rows + kernel_size - 1;
+		dim3 block_size(TX, TY);
+		int bx = sobel_out_width/block_size.x;
+		int by = sobel_out_height/block_size.y;
+		dim3 grid_size = dim3(bx, by);
+		
+		// Horizontal direction
+		int gx_horizontal[3] = {1, 0, -1};
+		int gx_vertical[3] = {1, 2, 1};
+		separable_convolve(gx_out, image, sobel_out_width, sobel_out_height, gx_horizontal, gx_vertical, 3, 1);
+		
+		// Vertical direction
+		int gy_horizontal[3] = {1, 2, 1};
+		int gy_vertical[3] = {1, 0, -1};
+		separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);
+		
+		int *dev_edges, *dev_gx, *dev_gy;
+		double *dev_magnitude, *dev_angle;
+		
+		// Allocate GPU memory space for partial derivatives
+		checkCudaErrors(cudaMalloc(&dev_magnitude, sobel_out_width * sobel_out_height * sizeof(double)));
+		checkCudaErrors(cudaMalloc(&dev_angle, sobel_out_width * sobel_out_height * sizeof(double)));
+		checkCudaErrors(cudaMalloc(&dev_edges, sobel_out_width * sobel_out_height * sizeof(int)));
+		checkCudaErrors(cudaMalloc(&dev_gx, sobel_out_width * sobel_out_height * sizeof(int)));
+		checkCudaErrors(cudaMalloc(&dev_gy, sobel_out_width * sobel_out_height * sizeof(int)));
+		checkCudaErrors(cudaMemcpy(dev_gx, gx_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
+		checkCudaErrors(cudaMemcpy(dev_gy, gy_out, sobel_out_width * sobel_out_height * sizeof(int), cudaMemcpyHostToDevice));
+		
+		struct timeval tv1, tv2;
+		gettimeofday(&tv1, NULL);
+		gradient_magnitude_angle_thresholding_and_suppresion(dev_magnitude, dev_angle, sobel_out_width, sobel_out_height, dev_gx, dev_gy, dev_edges, edges_out, high_threshold, low_threshold, grid_size, block_size);
+		gettimeofday(&tv2, NULL);
+		double parallel_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+		
+		gettimeofday(&tv1, NULL);
+		serial_thresholding_and_suppression(edges_out, sobel_out_width, sobel_out_height, gx_out, gy_out, high_threshold, low_threshold);
+		gettimeofday(&tv2, NULL);
+		double serial_computation_time = (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 + (double) (tv2.tv_sec - tv1.tv_sec);
+		
+		checkCudaErrors(cudaFree(dev_edges));
+		checkCudaErrors(cudaFree(dev_gx));
+		checkCudaErrors(cudaFree(dev_gy));
+		checkCudaErrors(cudaFree(dev_magnitude));
+		checkCudaErrors(cudaFree(dev_angle));
+		
+		printf("Test image: %s\n", images[image_index]);
+		printf("Parallel non-maximum suppression and selective thresholding execution time: %f seconds\n", parallel_computation_time);
+		printf("Serial non-maximum suppression and selective thresholding execution time: %f seconds\n", serial_computation_time);
+		printf("Estimated parallelization speedup: %f\n", serial_computation_time/parallel_computation_time);
+	}
+}
+
 int main() {
     const char *images[9];
     images[0] = "../../images/city_100_100.jpg";
@@ -92,6 +168,8 @@ int main() {
     compare_naive_separable_convolution(images, 9);
     printf("==========CPU VS GPU SEPARABLE CONVOLUTION SPEEDUP==========\n");
     compare_separable_convolution_speedup(images, 9);
+    printf("==========CPU VS GPU NON-MAXIMUM SUPPRESSION AND SELECTIVE THRESHOLDING SPEEDUP==========\n");
+    non_maximum_suppression_selective_thresholding_speedup(images, 8);
 
     return 0;
 }
