@@ -638,10 +638,10 @@ Our code for separable convolution, computation of the image's gradient magnitud
 \begin{itemize}
 	\item Intel Core i7 4790K @ 4.7 GHz (4C, 8T)
 	\item 16 GB of DDR3 memory @ 1600 MHz
-	\item NVIDIA GeForce GTX 750 (512 CUDA cores, 1437 MHz core clock, 6500 MHz memory clock, 2 GB video memory)
+	\item NVIDIA GeForce GTX 750 (512 CUDA cores, 1653 MHz core clock, 6510 MHz memory clock, 2 GB video memory)
 \end{itemize}
 
-\subsection{Separable convolution}
+\subsection{Separable Convolution}
 The below results were obtained by convolving the same image, resized to various image dimensions, with a separated Gaussian filter of kernel size $k = 3$.
 \begin{table}[H]
 	\small
@@ -668,13 +668,64 @@ The below results were obtained by convolving the same image, resized to various
     \label{separable-convolution-speedup-graph}
 \end{figure}
 
-\subsection{Non-maximum suppression and selective thresholding}
+\subsection{Non-maximum Suppression and Selective Thresholding}
+As discussed previously, our CUDA implementation of non-maximum suppression and selective thresholding is split into two parallel tasks that run one after the other: computation of the gradient magnitude and angle, followed by the actual edge selection algorithm. The computations for the speedup numbers below reflect the full procedure of calculating the gradient's magnitude and angle, selecting edges, and finally copying the results to host memory.
+\begin{table}[H]
+	\small
+	\centering
+	\caption{Speedup of Non-maximum Suppression and Selective Thresholding}
+	\label{non-maximum-suppression-selective-thresholding-speedup}
+	\begin{tabular}{llllll}
+	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
+	 $100 \times 100$ & $0.001701$ & $0.000332$ & $5.123494$ \\
+	 $500 \times 500$ & $0.027121$ & $0.009488$ & $2.858453$ \\
+	 $1000 \times 1000$ & $0.083744$ & $0.028291$ & $2.960093$ \\
+	 $2000 \times 2000$ & $0.237126$ & $0.104160$ & $2.276555$ \\
+	 $3000 \times 3000$ & $0.436223$ & $0.207502$ & $2.102259$ \\
+	 $4000 \times 4000$ & $0.608094$ & $0.341184$ & $1.782305$ \\
+	 $5000 \times 5000$ & $0.823099$ & $0.484530$ & $1.698758$ \\
+	 $6000 \times 6000$ & $1.020302$ & $0.668001$ & $1.527396$ \\
+	\end{tabular}
+\end{table}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{non_maximum_suppression_selective_thresholding_speedup_graph.jpg}
+	\caption{Visualization of non-maximum suppression and selective thresholding speedup versus pixel count}
+    \label{non-maximum-suppression-selective-thresholding-speedup-graph}
+\end{figure}
 
-\subsection{Thresholded spatial difference density matrix}
+\subsection{Thresholded Difference Density Matrix and Motion Area Estimation}
+The below results reflect the speedup in the complete procedure of calculating the difference matrix $\boldsymbol{D}_0$, determining the thresholded difference matrix $\boldsymbol{D}$, building a difference density matrix $\boldsymbol{D}'$, and finally generating an image representing the estimated motion area.
+\begin{table}[H]
+	\small
+	\centering
+	\caption{Speedup of Motion Area Estimation}
+	\label{motion-area-speedup}
+	\begin{tabular}{llllll}
+	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
+	 $100 \times 100$ & $0.004406$ & $0.002055$ & $2.144039$ \\
+	 $500 \times 500$ & $0.116421$ & $0.028079$ & $4.146195$ \\
+	 $1000 \times 1000$ & $0.490470$ & $0.107598$ & $4.558356$ \\
+	 $2000 \times 2000$ & $1.863727$ & $0.424997$ & $4.385271$ \\
+	 $3000 \times 3000$ & $4.334172$ & $0.952842$ & $4.548679$ \\
+	 $4000 \times 4000$ & $7.730778$ & $1.778392$ & $4.347061$ \\
+	 $5000 \times 5000$ & $12.174515$ & $2.660347$ & $4.576288$ \\
+	 $6000 \times 6000$ & $17.628128$ & $3.865616$ & $4.560238$ \\
+	 $7500 \times 7500$ & $28.354028$ & $6.118255$ & $4.634333$ \\
+	\end{tabular}
+\end{table}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{motion_area_estimation_speedup_graph.jpg}
+	\caption{Visualization of motion area estimation speedup versus pixel count}
+    \label{motion-area-estimation-speedup-graph}
+\end{figure}
+
+\subsection{Real-time Motion Detection Performance}
 
 
 \section{Conclusion}
-Placeholder text
+TODO: Some discussion of the results is warranted
 
 \section*{Team}
 \begin{itemize}
