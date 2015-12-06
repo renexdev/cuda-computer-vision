@@ -1,1 +1,3 @@
 *.pyc
+opencv-object-detect/positive_samples
+opencv-object-detect/negative_samples
