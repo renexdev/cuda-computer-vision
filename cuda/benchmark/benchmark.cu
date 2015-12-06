@@ -77,17 +77,21 @@ void compare_separable_convolution_speedup(const char **images, int num_images) 
 }
 
 int main() {
-	const char *images[6];
-	images[0] = "../images/nvidia_100_100.jpg";
-	images[1] = "../images/nvidia_500_500.jpg";
-	images[2] = "../images/nvidia_1000_1000.jpg";
-	images[3] = "../images/nvidia_1500_1500.jpg";
-	images[4] = "../images/nvidia_2000_2000.jpg";
-	images[5] = "../images/nvidia_2500_2500.jpg";
+    const char *images[9];
+    images[0] = "../../images/city_100_100.jpg";
+    images[1] = "../../images/city_500_500.jpg";
+    images[2] = "../../images/city_1000_1000.jpg";
+    images[3] = "../../images/city_2000_2000.jpg";
+    images[4] = "../../images/city_3000_3000.jpg";
+    images[5] = "../../images/city_4000_4000.jpg";
+    images[6] = "../../images/city_5000_5000.jpg";
+    images[7] = "../../images/city_6000_6000.jpg";
+    images[8] = "../../images/city_7500_7500.jpg";
 	
-	printf("==========SERIAL NAIVE VS SEPARABLE CONVOLUTION COMPARISON==========\n");
-    compare_naive_separable_convolution(images, 6);
+    printf("==========SERIAL NAIVE VS SEPARABLE CONVOLUTION COMPARISON==========\n");
+    compare_naive_separable_convolution(images, 9);
     printf("==========CPU VS GPU SEPARABLE CONVOLUTION SPEEDUP==========\n");
-    compare_separable_convolution_speedup(images, 6);
+    compare_separable_convolution_speedup(images, 9);
+
     return 0;
 }
