@@ -7,7 +7,7 @@ cascade = '/Users/Senthil/Documents/elec-301/opencv-object-detect/haarcascade_fr
 faceCascade = cv2.CascadeClassifier(cascade)
 
 image1 = '/Users/Senthil/Documents/elec-301/images/birthday1.jpg'
-daftPunk = cv2.imread('/Users/Senthil/Downloads/DaftPunk.png', cv2.IMREAD_UNCHANGED)
+daftPunk = cv2.imread('/Users/Senthil/Documents/elec-301/opencv-object-detect/DaftPunk.png', cv2.IMREAD_UNCHANGED)
 
 
 def faceDetectWebcam():
