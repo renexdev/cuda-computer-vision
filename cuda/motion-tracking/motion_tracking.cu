@@ -17,18 +17,18 @@ using namespace cv;
 #define TY 8
 
 
-void spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
+void serial_spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
 	int horizontal_block_size = width/horizontal_divisions;
 	int vertical_block_size = height/vertical_divisions;
 	int block_size = horizontal_block_size * vertical_block_size;
 	
 	const int scaling_factor = 1000;  // Used to linearly scale density map to units millipixels/pixels^2 (if that makes any sense?)
 	
-	for (int block_x_index = 0; block_x_index < horizontal_divisions; block_x_index++) {
-		for (int block_y_index = 0; block_y_index < vertical_divisions; block_y_index++) {
+	for (int block_x_index = 0; block_x_index < horizontal_divisions - 1; block_x_index++) {
+		for (int block_y_index = 0; block_y_index < vertical_divisions - 1; block_y_index++) {
 			int num_differences = 0;
-			for (int x = (block_x_index - 1) * horizontal_block_size; x < block_x_index * horizontal_block_size; x++) {
-				for (int y = (block_y_index - 1) * vertical_block_size; y < block_y_index * vertical_block_size; y++) {
+			for (int x = block_x_index * horizontal_block_size; x < (block_x_index + 1) * horizontal_block_size; x++) {
+				for (int y = block_y_index * vertical_block_size; y < (block_y_index + 1) * vertical_block_size; y++) {
 					if (x > 0 && y > 0 && x < width && y < height && difference[y * width + x] == 255) {
 						num_differences++;
 					}
@@ -39,19 +39,18 @@ void spatial_difference_density_map(double *density_map, int *difference, int wi
 	}
 }
 
-__global__ void gpu_spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
-	const int r = blockIdx.y * blockDim.y + threadIdx.y;
-	const int c = blockIdx.x * blockDim.x + threadIdx.x;
-	const int i = r * width + c;
+__global__ void spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * width + c;
 	
 	int horizontal_block_size = width/horizontal_divisions;
 	int vertical_block_size = height/vertical_divisions;
 	int block_size = horizontal_block_size * vertical_block_size;
 	
 	const int scaling_factor = 1000;
-	
-	if (difference[i] == 255) {
-		density_map[(int)(vertical_divisions*r/(double)height) * width + (int)(horizontal_divisions*c/(double)width)] += scaling_factor/(double)block_size;
+	if (difference[i] != 0) {
+		density_map[(int)(vertical_divisions*r/(double)height) * horizontal_divisions + (int)(horizontal_divisions*c/(double)width)] += scaling_factor/(double)block_size;
 	}
 }
 
@@ -66,8 +65,8 @@ void motion_area_estimate(int *motion_area, double *density_map, int width, int 
 		if (density_map[i] >= threshold) {
 			int r = i/horizontal_divisions;
 			int c = i - r*horizontal_divisions;
-			for (int x = (c - 1) * horizontal_block_size; x < c * horizontal_block_size; x++) {
-				for (int y = (r - 1) * vertical_block_size; y < r * vertical_block_size; y++) {
+			for (int x = c * horizontal_block_size; x < (c + 1) * horizontal_block_size; x++) {
+				for (int y = r * vertical_block_size; y < (r + 1) * vertical_block_size; y++) {
 					motion_area[y*width + x] = 255;
 				}
 			}
@@ -77,9 +76,9 @@ void motion_area_estimate(int *motion_area, double *density_map, int width, int 
 
 __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int width, int height, int threshold) {
     // Note: width should correspond to width of dev_out, edges_1, and edges_2; same for height
-	const int r = blockIdx.y * blockDim.y + threadIdx.y;
-	const int c = blockIdx.x * blockDim.x + threadIdx.x;
-	const int i = r * width + c;
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * width + c;
 
     // Set it to 0 initially
     dev_out[i] = 0;
@@ -100,11 +99,10 @@ __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int 
             }
         }
     }
+    __syncthreads();
 }
 
-double serial_difference_filter(int *difference, int *edges_1, int *edges_2, int width, int height, int threshold) {
-    struct timeval tv1, tv2;
-    gettimeofday(&tv1, NULL);
+void serial_difference_filter(int *difference, int *edges_1, int *edges_2, int width, int height, int threshold) {
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
             difference[y * width + x] = 0;
@@ -122,10 +120,6 @@ double serial_difference_filter(int *difference, int *edges_1, int *edges_2, int
             }
         }
     }
-    gettimeofday(&tv2, NULL);
-    double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
-    printf("Serial difference filter execution time: %f seconds\n", time_spent);
-    return time_spent;
 }
 
 void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2, int width, int height, int movement_threshold, int motion_threshold, int horizontal_divisions, int vertical_divisions) {
@@ -139,43 +133,33 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
     checkCudaErrors(cudaMalloc(&dev_edges_1, width*height*sizeof(int)));
     checkCudaErrors(cudaMalloc(&dev_edges_2, width*height*sizeof(int)));
     checkCudaErrors(cudaMalloc(&dev_difference, width*height*sizeof(int)));
+    
+    double *density_map = (double *)calloc(horizontal_divisions * vertical_divisions, sizeof(double));
     double *dev_density;
     checkCudaErrors(cudaMalloc(&dev_density, horizontal_divisions*vertical_divisions*sizeof(double)));
+    checkCudaErrors(cudaMemcpy(dev_density, density_map, horizontal_divisions * vertical_divisions * sizeof(double), cudaMemcpyHostToDevice));
 
     // Copy host arrays to device
     checkCudaErrors(cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice));
 
-    // Allocate space on host for output arrays
 //    int *serial_output = (int *)malloc(width * height * sizeof(int));
-
-//    printf("=====DIFFERENCE FILTER=====\n");
-//    double serial_time_spent = serial_difference_filter(difference, edges_1, edges_2, width, height, movement_threshold);
+//    serial_difference_filter(difference, edges_1, edges_2, width, height, movement_threshold);
 
     // Initialize grid
 	dim3 block_size(TX, TY);
 	int bx = width/block_size.x;
 	int by = height/block_size.y;
 	dim3 grid_size = dim3(bx, by);
-	
-	struct timeval tv1, tv2;
-	gettimeofday(&tv1, NULL);
 
 	// Difference filter
     difference_filter<<<grid_size, block_size>>>(dev_difference, dev_edges_1, dev_edges_2, width, height, movement_threshold);
     checkCudaErrors(cudaMemcpy(difference, dev_difference, width * height * sizeof(int), cudaMemcpyDeviceToHost));
 
-    gettimeofday(&tv2, NULL);
-    double time_spent = (double)(tv2.tv_usec - tv1.tv_usec) / 1000000 + (double)(tv2.tv_sec - tv1.tv_sec);
-//    printf("Parallel difference filter execution time: %f seconds\n", time_spent);
-    
     // Determine spatial density map
-	double *density_map = (double *)malloc(horizontal_divisions * vertical_divisions * sizeof(double));
-	gpu_spatial_difference_density_map<<<grid_size, block_size>>>(dev_density, dev_difference, width, height, horizontal_divisions, vertical_divisions);
+	spatial_difference_density_map<<<grid_size, block_size>>>(dev_density, dev_difference, width, height, horizontal_divisions, vertical_divisions);
 	checkCudaErrors(cudaMemcpy(density_map, dev_density, horizontal_divisions * vertical_divisions * sizeof(double), cudaMemcpyDeviceToHost));
-        for (int i = 0; i < horizontal_divisions * vertical_divisions; i++) {
-            printf("%f\n", density_map[i]);
-        }
+//	serial_spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
 	
 	// Estimate motion area
 	motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
@@ -188,14 +172,12 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 	
 	// Free allocated host memory
 	free(density_map);
-
-//    printf("Estimated parallelization speedup: %f\n", serial_time_spent/time_spent); 
 }
 
 int main() {
 	// Config constants
-	double movement_threshold = 10.0;  // Camera shake tolerance
-	int motion_threshold = 5;  // Threshold above which motion is registered
+	double movement_threshold = 5.0;  // Camera shake tolerance
+	int motion_threshold = 4;  // Threshold above which motion is registered
 	int edge_detect_high_threshold = 70;
 	int edge_detect_low_threshold = 50;
 	int horizontal_divisions = 12;
