@@ -13,8 +13,8 @@
 
 using namespace cv;
 
-#define TX 8
-#define TY 8
+#define TX 16
+#define TY 16
 
 
 void serial_spatial_difference_density_map(double *density_map, int *difference, int width, int height, int horizontal_divisions, int vertical_divisions) {
@@ -54,7 +54,24 @@ __global__ void spatial_difference_density_map(double *density_map, int *differe
 	}
 }
 
-void motion_area_estimate(int *motion_area, double *density_map, int width, int height, int horizontal_divisions, int vertical_divisions, double threshold) {
+__global__ void motion_area_estimate(int *motion_area, double *density_map, int width, int height, int horizontal_divisions, int vertical_divisions, double threshold) {
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * width + c;
+	
+	int density_map_index = (int)(vertical_divisions*r/(double)height) * horizontal_divisions + (int)(horizontal_divisions*c/(double)width);
+	
+	int horizontal_block_size = width/horizontal_divisions;
+	int vertical_block_size = height/vertical_divisions;
+	
+	if (density_map[density_map_index] >= threshold) {
+		motion_area[i] = 255;
+	} else {
+		motion_area[i] = 0;
+	}
+}
+
+void serial_motion_area_estimate(int *motion_area, double *density_map, int width, int height, int horizontal_divisions, int vertical_divisions, double threshold) {
 	int horizontal_block_size = width/horizontal_divisions;
 	int vertical_block_size = height/vertical_divisions;
 	
@@ -129,10 +146,11 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 	// Lower motion_threshold == more sensitive in picking up motion
 	
     // Allocate space on device
-    int *dev_edges_1, *dev_edges_2, *dev_difference;
+    int *dev_edges_1, *dev_edges_2, *dev_difference, *dev_motion_area;
     checkCudaErrors(cudaMalloc(&dev_edges_1, width*height*sizeof(int)));
     checkCudaErrors(cudaMalloc(&dev_edges_2, width*height*sizeof(int)));
     checkCudaErrors(cudaMalloc(&dev_difference, width*height*sizeof(int)));
+    checkCudaErrors(cudaMalloc(&dev_motion_area, width*height*sizeof(int)));
     
     double *density_map = (double *)calloc(horizontal_divisions * vertical_divisions, sizeof(double));
     double *dev_density;
@@ -158,14 +176,16 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 
     // Determine spatial density map
 	spatial_difference_density_map<<<grid_size, block_size>>>(dev_density, dev_difference, width, height, horizontal_divisions, vertical_divisions);
-	checkCudaErrors(cudaMemcpy(density_map, dev_density, horizontal_divisions * vertical_divisions * sizeof(double), cudaMemcpyDeviceToHost));
 //	serial_spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
 	
 	// Estimate motion area
-	motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
+//	serial_motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
+	motion_area_estimate<<<grid_size, block_size>>>(dev_motion_area, dev_density, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
+	checkCudaErrors(cudaMemcpy(motion_area, dev_motion_area, width * height * sizeof(int), cudaMemcpyDeviceToHost));
 	
 	// Responsible programmer
 	checkCudaErrors(cudaFree(dev_density));
+	checkCudaErrors(cudaFree(dev_motion_area));
 	checkCudaErrors(cudaFree(dev_difference));
 	checkCudaErrors(cudaFree(dev_edges_1));
 	checkCudaErrors(cudaFree(dev_edges_2));
