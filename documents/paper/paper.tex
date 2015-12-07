@@ -586,9 +586,9 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 	\nl \ForEach {$i \in [0, m - 1]$} {
 		\nl \ForEach {$j \in [0, n - 1]$} {
 			\nl $x \gets 0$\tcp*{Number of differences in this region}
-			\nl \ForEach{$i' \in [0, \frac{M}{n}]$} {
+			\nl \ForEach{$i' \in [0, \frac{M}{m}]$} {
 				\nl \ForEach{$j' \in [0, \frac{N}{n}]$} {
-					\nl \If {$\boldsymbol{D}_{i + i', j + j'} \neq 0$} {
+					\nl \If {$\boldsymbol{D}_{\frac{Mi}{m} + i', \frac{Nj}{n} + j'} \neq 0$} {
 						\nl $x \gets x + 1$\;
 					}
 				}
