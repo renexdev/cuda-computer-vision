@@ -1,13 +1,10 @@
 import cv2
 from matplotlib import pyplot as plt
-import datetime as dt
 
 
 def edge_detect(img, display=False):
-    start_time = dt.datetime.now()
+
     edges = cv2.Canny(img, 100, 200)
-    end_time = dt.datetime.now()
-    time = (end_time-start_time).microseconds
 
     if display:
         plt.subplot(121), plt.imshow(img, cmap='gray')
@@ -16,4 +13,4 @@ def edge_detect(img, display=False):
         plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
         plt.show()
 
-    return edges, time
+    return edges

@@ -17,10 +17,11 @@ if not(cap.isOpened()):
 last_frame = np.zeros((480, 640), np.uint8)
 last_frame_edge = edge.edge_detect(last_frame)[0]
 
+
 # motion detection algorithm
-def detect_motion(frame, last_frame):
+def detect_motion(edge, last_edge):
     height, width = np.shape(frame)
-    d = last_frame - frame
+    d = last_edge - edge
     motion = np.zeros(((N, M), np.uint8))
     for i in range(M):
         for j in range(N):
@@ -34,10 +35,11 @@ def detect_motion(frame, last_frame):
     return motion
 
 # main loop
-while(cap.isOpened()):
+while cap.isOpened():
     ret, frame = cap.read()
-    frame_edge = edge.edge_detect(frame)[0]
-    # cv2.imshow('normal', frame)  # normal video
+    frame_edge = edge.edge_detect(frame)
+
+    cv2.imshow('normal', frame)  # normal video
     cv2.imshow('edge', frame_edge)  # edge detection video
     motion = detect_motion(frame_edge, last_frame_edge)
     cv2.imshow('motion', cv2.resize(motion, (480, 640)))  # motion detection video
