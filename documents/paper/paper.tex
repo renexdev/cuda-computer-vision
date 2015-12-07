@@ -58,6 +58,9 @@ Graphics processing units (GPUs) are rapidly gaining popularity as a platform fo
 \subsection{GPU Computation and the NVIDIA CUDA Framework}
 Formally, NVIDIA CUDA is a parallel computing platform and programming model that exposes familiar C-based APIs for parallelized computations. CUDA is NVIDIA's platform for general-purpose computing on graphics processing units (commonly, GPGPU or GP$^2$U), or the use of a GPU for computations traditionally handled by the CPU. Generally, GPGPU is used to exploit the improved multithreaded performance and raw floating-point computational ability of GPUs over CPUs. For example, on modern hardware, an NVIDIA GeForce GTX 970 (1664 CUDA cores) exhibits peak single-precision floating point performance of nearly 3500 GFLOPS (floating-point operations per second), while an Intel Core i7 4790K (4C, 8T) achieves 100 GFLOPS. Our goal is to demonstrate the performance of GPU computing by solving a handful of existing problems in computer vision with CUDA: namely, edge detection and motion detection.
 
+\subsection{Motivation}
+GPU parallelization is a powerful tool for accelerating image processing tasks. The motivation for our CUDA motion detection algorithm stems from the ease of creating a GPU implementation, due in large part to the simplicity of the CUDA APIs, and the diverse applications of motion detection. For example, motion detection is applied in real-time traffic analysis, vision-based security, and consumer technology (e.g. motion-triggered home automation solutions). Further, since our computer vision algorithm calculates the location of motion in a frame based on detected edges, our approach is both more accurate and supplemented with more specific data. Therefore, we view an opportunity use CUDA to explore the speedup possible by using a GPU to accelerate this common task in computer vision.
+
 
 \section{Edge Detection Algorithm}
 Edge detection is the process of determining the locations of boundaries that separate objects, or sections of objects, in an image. This edge data simplifies the features of an image to only its basic outlines, which makes it a convenient input for many other problems in computer vision, including motion detection and tracking, object classification, three-dimensional reconstruction, and others. The edge detection algorithm we present is composed of three stages:
@@ -605,7 +608,14 @@ Our CUDA implementation of our motion detection algorithm is similar to that for
 	caption=GPU computation of thresholded difference matrix,
 	label=difference-filter-implementation
 ]
-__global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int width, int height, int threshold) {
+__global__ void difference_filter(
+	int *dev_out,
+	int *edges_1,
+	int *edges_2,
+	int width,
+	int height,
+	int threshold
+) {
 	const int r = blockIdx.y * blockDim.y + threadIdx.y;
 	const int c = blockIdx.x * blockDim.x + threadIdx.x;
 	const int i = r * width + c;
@@ -631,7 +641,7 @@ __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int 
     }
 }
 \end{lstlisting}
-The construction of the difference density matrix is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}'$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}'$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
+The construction of the difference density matrix as in Algorithm \ref{difference-density-matrix-algorithm} is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}'$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}'$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
 \begin{lstlisting}[
 	caption=GPU computation of the difference density matrix,
 	label=difference-density-implementation
@@ -657,6 +667,33 @@ __global__ void spatial_difference_density_map(
 		int i = (int)(vertical_divisions * r/(double)height);
 		int j = (int)(horizontal_divisions * c/(double)width);
 		density_map[i * horizontal_divisions + j] += scaling_factor/(double)block_size;
+	}
+}
+\end{lstlisting}
+The generation of the motion area estimation image is relatively straightforward: we map the index $(i, j)$ of $\boldsymbol{D}'$ back to an index $(r, c)$ where $r < M \wedge c < N$, and set the value at that index high or low accordingly.
+\begin{lstlisting}[
+	caption=GPU generation of the motion area estimation image,
+	label=motion-area-estimation-implementation
+]
+__global__ void motion_area_estimate(
+	int *motion_area,
+	double *density_map,
+	int width,
+	int height,
+	int horizontal_divisions,
+	int vertical_divisions,
+	double threshold
+) {
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * width + c;
+	
+	int density_map_index = (int)(vertical_divisions*r/(double)height) * horizontal_divisions + (int)(horizontal_divisions*c/(double)width);
+
+	if (density_map[density_map_index] >= threshold) {
+		motion_area[i] = 255;
+	} else {
+		motion_area[i] = 0;
 	}
 }
 \end{lstlisting}
@@ -690,7 +727,7 @@ The below results were obtained by convolving the same image, resized to various
 	 $7500 \times 7500$ & $1.052294$ & $0.439262$ & $2.395595$ \\
 	\end{tabular}
 \end{table}
-\begin{figure}[H]
+\begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{separable_convolution_speedup_graph.jpg}
 	\caption{Visualization of separable convolution speedup versus pixel count}
@@ -716,7 +753,7 @@ As discussed previously, our CUDA implementation of non-maximum suppression and 
 	 $6000 \times 6000$ & $1.020302$ & $0.668001$ & $1.527396$ \\
 	\end{tabular}
 \end{table}
-\begin{figure}[H]
+\begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{non_maximum_suppression_selective_thresholding_speedup_graph.jpg}
 	\caption{Visualization of non-maximum suppression and selective thresholding speedup versus pixel count}
@@ -743,7 +780,7 @@ The below results reflect the speedup in the complete procedure of calculating t
 	 $7500 \times 7500$ & $28.354028$ & $6.118255$ & $4.634333$ \\
 	\end{tabular}
 \end{table}
-\begin{figure}[H]
+\begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{motion_area_estimation_speedup_graph.jpg}
 	\caption{Visualization of motion area estimation speedup versus pixel count}
@@ -761,7 +798,7 @@ Our real-time motion detection implementation continuously repeats the following
 	\item Draw an image representing the portions of the image with motion
 	\item Update a live preview of $\boldsymbol{F}_1$, $\boldsymbol{E}_1$, $\boldsymbol{D}'$, and the motion area estimate
 \end{enumerate}
-Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate results achieved on a $640 \times 480$ continuous video stream, running on the same hardware as the benchmarks in the previous section. The frame rate was evaluated on a 10-second video stream in a well-lit environment with motion of a moderate number of edge pixels ($< 10\%$ of the total number of pixels in the frame) in front of the camera.
+Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate results achieved on a $640 \times 480$ continuous video stream, running on the same hardware as the benchmarks in the previous section. The frame rate was evaluated on a 10-second video stream in a well-lit environment with motion of a moderate number of edge pixels ($< 10\%$ of the total number of pixels in the frame) in front of the camera. All procedures (as described in this paper) were executed in parallel on the GPU.
 \begin{table}[H]
 	\small
 	\centering
@@ -777,9 +814,11 @@ Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate re
 \end{table}
 
 \section{Conclusion}
-TODO: Some discussion of the results is warranted
+Our CUDA implementation of both the edge detection and motion detection algorithms demonstrate that parallelized, GPU computation results in significant speedups compared to a serial, CPU implementation. In all benchmarked cases (separable convolution with a Gaussian filter, edge detection via non-maximum suppression and selective thresholding, and motion area estimation from a difference density map), we find that the GPU implementation, running on a mid-range graphics card, demonstrated anywhere between a 1.5x to 4.6x speedup over a relatively high-performance, overclocked CPU. Further, for each algorithm, we find that the speedup asymptotically approaches a general range as the input size increases.
+\par It is important to note the edge case for the separable convolution algorithm on images of small input sizes (namely, near the dimensions $100 \times 100$, or $10000$ total pixels). For this case, we observe a remarkably underwhelming speedup ratio of 0.003482, suggesting that a CPU implementation is nearly 300 times as fast as a GPU implementation (Table \ref{separable-convolution-speedup}). We speculate that, because the input size is very small (especially in comparison to the larger versions of the same image, which exceed 55 million total pixels in size), the additional overhead caused by launching the GPU kernel (e.g. allocating device memory, copying the host arrays onto the device, and copying the device arrays back to the host following completion of the computation) causes the GPU code to take much longer to run than the more directly implemented CPU code. This reasoning is backed by the fact that, at a $250000$ total pixel count (a $500 \times 500$ image), the speedup ($1.740469$) is still much lower than the asymptotic value it approaches as the pixel count exceeds about 1 million ($2.235796$).
+\par However, an opposite trend appears to be in play for the speedup of the non-maximum suppression and selective thresholding algorithm (Table \ref{non-maximum-suppression-selective-thresholding-speedup}), where we observe a high speedup for low input sizes and a lower speedup for high input sizes. We speculate that this is most likely due to the overhead of running two separate parallel tasks in sequence, both of which require the same amount of memory. As a result of our implementation, not only does a large input size result in a greater percentage of the time that any thread is idle, but it also doubles the total memory footprint of the algorithm. This is evident from the significantly higher memory consumption of this procedure compared to the others; an input size of 36 million pixels nearly maxes out the 2 GB of available GPU memory, while the other algorithms consume no more than a few hundred megabytes on the largest benchmarking image we use. Despite this trend, the speedup is still greater than 1 for large input sizes, suggesting that a GPU implementation is still consistently faster than its CPU counterpart.
 
-\section{Source Code}
+\section*{Source Code}
 The full source code for this project, including the CUDA and Python implementations of all of our algorithms, is available at \texttt{https://github.com/LINKIWI/elec-301}.
 
 \section*{Team}
