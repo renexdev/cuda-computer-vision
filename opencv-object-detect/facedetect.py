@@ -1,13 +1,15 @@
 import sys
 import cv2
 import datetime as dt
+import os
 import numpy
 
-cascade = '/Users/Senthil/Documents/elec-301/opencv-object-detect/haarcascade_frontalface_default.xml'
+cascade = 'haarcascade_frontalface_default.xml'
 faceCascade = cv2.CascadeClassifier(cascade)
 
-image1 = '/Users/Senthil/Documents/elec-301/images/birthday1.jpg'
-daftPunk = cv2.imread('/Users/Senthil/Documents/elec-301/opencv-object-detect/DaftPunk.png', cv2.IMREAD_UNCHANGED)
+image1 = os.path.join(os.path.dirname(__file__), 'images/birthday1.jpg')
+
+daftPunk = cv2.imread('DaftPunk.png', cv2.IMREAD_UNCHANGED)
 
 
 def faceDetectWebcam():
@@ -81,5 +83,5 @@ def faceDetectTiming(images):
         cv2.destroyAllWindows()
 
 
-# faceDetectTiming(image1)
-faceDetectWebcam()
+faceDetectTiming(image1)
+#faceDetectWebcam()
