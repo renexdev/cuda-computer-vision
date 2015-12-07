@@ -140,13 +140,11 @@ void edge_detect(int *edges_out, int *gx_out, int *gy_out, int *image, int image
 	dim3 grid_size = dim3(bx, by);
 	
 	// Horizontal direction
-//	printf("=====HORIZONTAL PARTIAL DIFFERENTIATION=====\n");
 	int gx_horizontal[3] = {1, 0, -1};
 	int gx_vertical[3] = {1, 2, 1};
 	separable_convolve(gx_out, image, sobel_out_width, sobel_out_height, gx_horizontal, gx_vertical, 3, 1);
 	
 	// Vertical direction
-//	printf("=====VERTICAL PARTIAL DIFFERENTIATION=====\n");
 	int gy_horizontal[3] = {1, 2, 1};
 	int gy_vertical[3] = {1, 0, -1};
 	separable_convolve(gy_out, image, sobel_out_width, sobel_out_height, gy_horizontal, gy_vertical, 3, 1);

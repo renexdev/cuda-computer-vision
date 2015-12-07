@@ -166,9 +166,6 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
     checkCudaErrors(cudaMemcpy(dev_edges_1, edges_1, width*height*sizeof(int), cudaMemcpyHostToDevice));
     checkCudaErrors(cudaMemcpy(dev_edges_2, edges_2, width*height*sizeof(int), cudaMemcpyHostToDevice));
 
-//    int *serial_output = (int *)malloc(width * height * sizeof(int));
-//    serial_difference_filter(difference, edges_1, edges_2, width, height, movement_threshold);
-
     // Initialize grid
 	dim3 block_size(TX, TY);
 	int bx = width/block_size.x;
@@ -181,10 +178,8 @@ void motion_detect(int *motion_area, int *difference, int *edges_1, int *edges_2
 
     // Determine spatial density map
 	spatial_difference_density_map<<<grid_size, block_size>>>(dev_density, dev_difference, width, height, horizontal_divisions, vertical_divisions);
-//	serial_spatial_difference_density_map(density_map, difference, width, height, horizontal_divisions, vertical_divisions);
 	
 	// Estimate motion area
-//	serial_motion_area_estimate(motion_area, density_map, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
 	motion_area_estimate<<<grid_size, block_size>>>(dev_motion_area, dev_density, width, height, horizontal_divisions, vertical_divisions, motion_threshold);
 	checkCudaErrors(cudaMemcpy(motion_area, dev_motion_area, width * height * sizeof(int), cudaMemcpyDeviceToHost));
 	

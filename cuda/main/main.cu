@@ -68,7 +68,6 @@ int main() {
 		}
 	
 		// Gaussian filter
-//		printf("=====GAUSSIAN FILTER=====\n");
 		int horizontal_filter[3] = {1, 2, 1};
 		int vertical_filter[3] = {1, 2, 1};
 		int kernel_size = 3;
@@ -78,7 +77,7 @@ int main() {
 		int gaussian_out_width = image_1.cols + kernel_size - 1;
 		int gaussian_out_height = image_1.rows + kernel_size - 1;
 		
-		// Edge detect
+		// Edge detection
 		int sobel_out_width = gaussian_out_width + kernel_size - 1;
 		int sobel_out_height = gaussian_out_height + kernel_size - 1;
 		edge_detect(edges_1, gx_out, gy_out, gaussian_out_1, gaussian_out_width, gaussian_out_height, edge_detect_high_threshold, edge_detect_low_threshold);
