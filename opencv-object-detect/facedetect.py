@@ -7,7 +7,7 @@ import numpy
 cascade = 'haarcascade_frontalface_default.xml'
 faceCascade = cv2.CascadeClassifier(cascade)
 
-image1 = os.path.join(os.path.dirname(__file__), 'images/birthday1.jpg')
+image1 = os.path.join(os.path.dirname(__file__), 'birthday.jpg')
 
 daftPunk = cv2.imread('DaftPunk.png', cv2.IMREAD_UNCHANGED)
 
