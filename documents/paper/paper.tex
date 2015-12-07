@@ -569,7 +569,7 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 	\centering
 	\includegraphics[width=0.45\textwidth]{desk_motion_area.jpg}
 	\caption{Final estimate of motion area of Figures \ref{desk-1-original} and \ref{desk-2-original} based on the density map of Figure \ref{desk-difference-density}}
-    \label{desk-difference-density}
+    \label{desk-motion-area}
 \end{figure}
 \begin{algorithm}[]
 	\smaller
@@ -629,6 +629,35 @@ __global__ void difference_filter(int *dev_out, int *edges_1, int *edges_2, int 
             }
         }
     }
+}
+\end{lstlisting}
+The construction of the difference density matrix is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}'$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}'$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
+\begin{lstlisting}[
+	caption=GPU computation of the difference density matrix,
+	label=difference-density-implementation
+]
+__global__ void spatial_difference_density_map(
+	double *density_map,
+	int *difference,
+	int width,
+	int height,
+	int horizontal_divisions,
+	int vertical_divisions
+) {
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * width + c;
+	
+	int horizontal_block_size = width/horizontal_divisions;
+	int vertical_block_size = height/vertical_divisions;
+	int block_size = horizontal_block_size * vertical_block_size;
+	
+	const int scaling_factor = 1000;
+	if (difference[i] != 0) {
+		int i = (int)(vertical_divisions * r/(double)height);
+		int j = (int)(horizontal_divisions * c/(double)width);
+		density_map[i * horizontal_divisions + j] += scaling_factor/(double)block_size;
+	}
 }
 \end{lstlisting}
 
@@ -722,10 +751,36 @@ The below results reflect the speedup in the complete procedure of calculating t
 \end{figure}
 
 \subsection{Real-time Motion Detection Performance}
-
+Our real-time motion detection implementation continuously repeats the following procedure in an infinite loop:
+\begin{enumerate}
+	\item Read two frames $\boldsymbol{F}_1$ and $\boldsymbol{F}_2$ from the camera in succession
+	\item Apply a Gaussian low-pass filter of kernel size $k = 3$ to both frames
+	\item Apply a Sobel edge filter in both directions
+	\item Calculate the edges $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$ from the image with non-maximum suppression and selective thresholding
+	\item Calculate the difference matrix $\boldsymbol{D}$ and difference density matrix $\boldsymbol{D}'$
+	\item Draw an image representing the portions of the image with motion
+	\item Update a live preview of $\boldsymbol{F}_1$, $\boldsymbol{E}_1$, $\boldsymbol{D}'$, and the motion area estimate
+\end{enumerate}
+Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate results achieved on a $640 \times 480$ continuous video stream, running on the same hardware as the benchmarks in the previous section. The frame rate was evaluated on a 10-second video stream in a well-lit environment with motion of a moderate number of edge pixels ($< 10\%$ of the total number of pixels in the frame) in front of the camera.
+\begin{table}[H]
+	\small
+	\centering
+	\caption{Real-time Frame Rate Statistics}
+	\label{real-time-fps-statistics}
+	\begin{tabular}{ll}
+	 Average FPS & $11.01$ \\
+	 Median FPS & $10.72$ \\
+	 Min FPS & $9.68$ \\
+	 Max FPS & $12.02$ \\
+	 Standard deviation & $0.37$ \\
+	\end{tabular}
+\end{table}
 
 \section{Conclusion}
 TODO: Some discussion of the results is warranted
+
+\section{Source Code}
+The full source code for this project, including the CUDA and Python implementations of all of our algorithms, is available at \texttt{https://github.com/LINKIWI/elec-301}.
 
 \section*{Team}
 \begin{itemize}
