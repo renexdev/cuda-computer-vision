@@ -11,6 +11,8 @@
 #include "opencv2/cudaobjdetect.hpp"
 #include "opencv2/cudaimgproc.hpp"
 #include "opencv2/cudawarping.hpp"
+#include <stdio.h>
+#include <sys/time.h>
 
 //#include "/home/ubuntu/Downloads/opencv/samples/gpu/tickmeter.hpp"
 
@@ -208,6 +210,7 @@ int main(int argc, const char *argv[])
 
     /* parameters */
     bool useGPU = true;
+   // bool useGPU = false;
     double scaleFactor = 1.0;
     bool findLargestObject = false;
     bool filterRects = true;
@@ -232,6 +235,9 @@ int main(int argc, const char *argv[])
 
 //        TickMeter tm;
   //      tm.start();
+	
+	struct timeval tstart, tend;
+	gettimeofday(&tstart, NULL);	
 
         if (useGPU)
         {
@@ -256,6 +262,10 @@ int main(int argc, const char *argv[])
         {
             rectangle(resized_cpu, faces[i], Scalar(255));
         }
+	
+	gettimeofday(&tend, NULL);
+	double runtime = (double) (tend.tv_usec - tstart.tv_usec) / 100000 + (double) (tend.tv_sec - tstart.tv_sec);
+	printf("Runtime: %f seconds\n", runtime);	
 
     //    tm.stop();
       //  double detectionTime = tm.getTimeMilli();
