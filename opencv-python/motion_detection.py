@@ -4,9 +4,9 @@ from matplotlib import pyplot as plt
 import edge_detect as edge
 
 # define constants
-M = 10  # number of columns
-N = 8  # number of rows
-T = 0.01  # Threshold
+M = 8  # number of columns
+N = 10  # number of rows
+T = 0.005  # Threshold
 
 # start video capture
 cap = cv2.VideoCapture(0)
@@ -20,18 +20,18 @@ last_frame_edge = edge.edge_detect(last_frame)[0]
 
 # motion detection algorithm
 def detect_motion(edge, last_edge):
-    height, width = np.shape(frame)
+    height, width, depth = np.shape(frame)
     d = last_edge - edge
-    motion = np.zeros(((N, M), np.uint8))
+    motion = np.zeros((M, N), np.uint8)
     for i in range(M):
         for j in range(N):
             x = 0
             for i_prime in range(height/M):
                 for j_prime in range(width/N):
-                    if d[i*M+i_prime, j*N+j_prime] != 0:
+                    if d[i*height/M+i_prime, j*width/N+j_prime] != 0:
                         x += 1
             if M*N*x/(height*width*1.0) > T:
-                motion[i, j] = 1
+                motion[i, j] = 255
     return motion
 
 # main loop
@@ -39,10 +39,10 @@ while cap.isOpened():
     ret, frame = cap.read()
     frame_edge = edge.edge_detect(frame)
 
-    cv2.imshow('normal', frame)  # normal video
+    # cv2.imshow('normal', frame)  # normal video
     cv2.imshow('edge', frame_edge)  # edge detection video
     motion = detect_motion(frame_edge, last_frame_edge)
-    cv2.imshow('motion', cv2.resize(motion, (480, 640)))  # motion detection video
+    cv2.imshow('motion', cv2.resize(motion, (640, 480)))  # motion detection video
 
     # update frames
     last_frame = frame
