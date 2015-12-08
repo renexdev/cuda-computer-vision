@@ -236,7 +236,7 @@ int main(int argc, const char *argv[])
         if (useGPU)
         {
             cascade_gpu->setFindLargestObject(findLargestObject);
-            cascade_gpu->setScaleFactor(1.2);
+            cascade_gpu->setScaleFactor(1.1);
             cascade_gpu->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
 
             cascade_gpu->detectMultiScale(resized_gpu, facesBuf_gpu);
@@ -245,7 +245,7 @@ int main(int argc, const char *argv[])
         else
         {
             Size minSize = cascade_gpu->getClassifierSize();
-            cascade_cpu.detectMultiScale(resized_cpu, faces, 1.2,
+            cascade_cpu.detectMultiScale(resized_cpu, faces, 1.1,
                                          (filterRects || findLargestObject) ? 4 : 0,
                                          (findLargestObject ? CASCADE_FIND_BIGGEST_OBJECT : 0)
                                             | CASCADE_SCALE_IMAGE,

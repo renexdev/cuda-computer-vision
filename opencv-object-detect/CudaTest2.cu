@@ -7,7 +7,8 @@ using namespace cv;
 
 int main(int argc, char* argv[])
 {
-    Ptr<cuda::CascadeClassifier> debugCascade = cuda::CascadeClassifier::create("/home/ubuntu/Downloads/opencv/data/haarcascades_cuda/haarcascade_frontalface_alt2.xml");
+//    Ptr<cuda::CascadeClassifier> debugCascade = cuda::CascadeClassifier::create("/home/ubuntu/project/opencv-object-detect/haarcascade_frontalface_default.xml");
+	Ptr<cuda::CascadeClassifier> debugCascade = cuda::CascadeClassifier::create("/home/ubuntu/Downloads/opencv/data/haarcascades_cuda/haarcascade_frontalface_alt2.xml");
 
     if (debugCascade.empty()){
         cerr << "Could not load model!" << endl;
