@@ -1,3 +1,7 @@
 *.pyc
 opencv-object-detect/positive_samples
 opencv-object-detect/negative_samples
+documents/paper/paper.aux
+documents/paper/paper.log
+documents/paper/paper.pdf
+documents/paper/paper.synctex.gz
