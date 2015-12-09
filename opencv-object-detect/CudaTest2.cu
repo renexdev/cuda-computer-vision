@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    string imageName = "/home/ubuntu/project/opencv-object-detect/senthil1000.jpg";
+    string imageName = "/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg";
     Mat original = imread(imageName);
     Mat gray = imread(imageName, CV_LOAD_IMAGE_GRAYSCALE);
     Mat work_img = original.clone();
@@ -48,9 +48,9 @@ int main(int argc, char* argv[])
     cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
     cascade->detectMultiScale(inputGPU, faces);
 
-//    gettimeofday(&tendG, NULL);
-//    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
-//    printf("GPU Runtime: %f seconds\n", runtimeG);
+   // gettimeofday(&tendG, NULL);
+   // double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+   // printf("GPU Runtime: %f seconds\n", runtimeG);
     //printf("end %f \n", (double)(tend.tv_usec));
     //printf("start %f \n", (double)(tstart.tv_usec));
 
@@ -71,7 +71,6 @@ int main(int argc, char* argv[])
     //CPU Detection
     gettimeofday(&tstartC, NULL);
     cv::Mat inputCPU(work_img);
-    //cv::Mat facesCPU;
     vector<Rect> facesCPU;
     Size minsize = cascade->getClassifierSize();
     cascadeCPU.detectMultiScale(inputCPU, facesCPU, 1.1,
