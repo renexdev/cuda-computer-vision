@@ -25,8 +25,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    Mat original = imread("/home/ubuntu/project/opencv-object-detect/senthil1000.jpg");
-    Mat gray = imread("/home/ubuntu/project/opencv-object-detect/senthil1000.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+    Mat original = imread("/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg");
+    Mat gray = imread("/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg", CV_LOAD_IMAGE_GRAYSCALE);
     Mat work_img = original.clone();
 
     // Preprocessing
@@ -47,14 +47,25 @@ int main(int argc, char* argv[])
     cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
     cascade->detectMultiScale(inputGPU, faces);
 
-    gettimeofday(&tendG, NULL);
-    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
-    printf("GPU Runtime: %f seconds\n", runtimeG);
+//    gettimeofday(&tendG, NULL);
+//    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+//    printf("GPU Runtime: %f seconds\n", runtimeG);
     //printf("end %f \n", (double)(tend.tv_usec));
     //printf("start %f \n", (double)(tstart.tv_usec));
 
     vector<Rect> objects;
     cascade->convert(faces, objects);
+   
+    for(int i=0;i<(int)objects.size();++i)
+    {
+         rectangle(original, objects[i], Scalar(0, 255, 0), 3);
+    }  
+  
+    imshow("detections", original);
+
+    gettimeofday(&tendG, NULL);
+    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+    printf("GPU Runtime: %f seconds\n", runtimeG);
 
     //CPU Detection
     gettimeofday(&tstartC, NULL);
@@ -66,8 +77,16 @@ int main(int argc, char* argv[])
                                          (filterRects || findLargestObject) ? 4 : 0,
                                          (findLargestObject ? CASCADE_FIND_BIGGEST_OBJECT : 0)
                                             | CASCADE_SCALE_IMAGE,
-                                         minsize);    
-   
+                                         minsize);
+
+    ///    
+    for(int i=0;i<(int)facesCPU.size();++i)
+    {
+         rectangle(work_img, facesCPU[i], Scalar(0, 255, 0), 3);
+    }
+    
+    imshow("detections2", work_img);
+
     gettimeofday(&tendC, NULL);
     double runtimeC = (double) (tendC.tv_usec - tstartC.tv_usec) / 100000 + (double) (tendC.tv_sec - tstartC.tv_sec);
     printf("CPU Runtime: %f seconds\n", runtimeC);
@@ -76,12 +95,15 @@ int main(int argc, char* argv[])
     printf("speedup: %f \n", speedup);
  
     //display
-    for(int i=0;i<(int)objects.size();++i)
-    {
-         rectangle(original, objects[i], Scalar(0, 255, 0), 3);
-    }  
+//    for(int i=0;i<(int)objects.size();++i)
+//    {
+//         rectangle(original, objects[i], Scalar(0, 255, 0), 3);
+//    }  
 
-    imshow("detections", original);
+//    imshow("detections", original);
     moveWindow("detections", 100, 100);
     waitKey(0);
+    moveWindow("detections2", 100, 100);
+    waitKey(0);
+
 }
