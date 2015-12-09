@@ -25,8 +25,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    Mat original = imread("/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg");
-    Mat gray = imread("/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+    string imageName = "/home/ubuntu/project/opencv-object-detect/senthil1000.jpg";
+    Mat original = imread(imageName);
+    Mat gray = imread(imageName, CV_LOAD_IMAGE_GRAYSCALE);
     Mat work_img = original.clone();
 
     // Preprocessing
