@@ -11,7 +11,6 @@
 
 using namespace std;
 using namespace cv;
-//using namespace cv::cuda;
 
 int main(int argc, char* argv[])
 {
@@ -25,7 +24,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    string imageName = "/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg";
+    //string imageName = "/home/ubuntu/project/opencv-object-detect/Senthil2000.jpg";
+    string imageName = string(argv[2]);
     Mat original = imread(imageName);
     Mat gray = imread(imageName, CV_LOAD_IMAGE_GRAYSCALE);
     Mat work_img = original.clone();
@@ -38,15 +38,75 @@ int main(int argc, char* argv[])
     bool filterRects = true;
 
     struct timeval tstartC, tendC, tstartG, tendG;	
-    
+  
+    if (string(argv[1]) == "--GPU")
+	{
+
+		gettimeofday(&tstartG, NULL);
+    		cuda::GpuMat inputGPU(work_img);
+    		cuda::GpuMat faces;
+    		cascade->setFindLargestObject(findLargestObject);
+    		cascade->setScaleFactor(1.2);
+    		cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
+    		cascade->detectMultiScale(inputGPU, faces);
+
+   		// gettimeofday(&tendG, NULL);
+   		// double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+   		// printf("GPU Runtime: %f seconds\n", runtimeG);
+   		 //printf("end %f \n", (double)(tend.tv_usec));
+   		 //printf("start %f \n", (double)(tstart.tv_usec));
+	
+    		vector<Rect> objects;
+    		cascade->convert(faces, objects);
+	
+    		for(int i=0;i<(int)objects.size();++i)
+    		{
+    		     rectangle(original, objects[i], Scalar(0, 255, 0), 3);
+    		}
+
+    		imshow("detections", original);
+
+    		gettimeofday(&tendG, NULL);
+    		double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+    		printf("GPU Runtime: %f seconds\n", runtimeG);
+
+	}
+
+	else if (string(argv[1]) == "--CPU")
+	{
+		gettimeofday(&tstartC, NULL);
+    		cv::Mat inputCPU(work_img);
+    		vector<Rect> facesCPU;
+    		Size minsize = cascade->getClassifierSize();
+    		cascadeCPU.detectMultiScale(inputCPU, facesCPU, 1.1,
+   		                                     (filterRects || findLargestObject) ? 4 : 0,
+  		       	               		     (findLargestObject ? CASCADE_FIND_BIGGEST_OBJECT : 0)
+        		                                | CASCADE_SCALE_IMAGE,
+                        		              minsize);
+
+    ///    
+    		for(int i=0;i<(int)facesCPU.size();++i)
+    		{
+        		 rectangle(work_img, facesCPU[i], Scalar(0, 255, 0), 3);
+    		}	
+
+    		imshow("detections2", work_img);
+
+    		gettimeofday(&tendC, NULL);
+    		double runtimeC = (double) (tendC.tv_usec - tstartC.tv_usec) / 100000 + (double) (tendC.tv_sec - tstartC.tv_sec);
+    		printf("CPU Runtime: %f seconds\n", runtimeC);
+		
+	}
+  
+
     // GPU Detection
-    gettimeofday(&tstartG, NULL);
-    cuda::GpuMat inputGPU(work_img);
-    cuda::GpuMat faces;
-    cascade->setFindLargestObject(findLargestObject);
-    cascade->setScaleFactor(1.2);
-    cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
-    cascade->detectMultiScale(inputGPU, faces);
+//    gettimeofday(&tstartG, NULL);
+//    cuda::GpuMat inputGPU(work_img);
+//    cuda::GpuMat faces;
+//    cascade->setFindLargestObject(findLargestObject);
+//    cascade->setScaleFactor(1.2);
+//    cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
+//    cascade->detectMultiScale(inputGPU, faces);
 
    // gettimeofday(&tendG, NULL);
    // double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
@@ -54,45 +114,45 @@ int main(int argc, char* argv[])
     //printf("end %f \n", (double)(tend.tv_usec));
     //printf("start %f \n", (double)(tstart.tv_usec));
 
-    vector<Rect> objects;
-    cascade->convert(faces, objects);
+//    vector<Rect> objects;
+//    cascade->convert(faces, objects);
    
-    for(int i=0;i<(int)objects.size();++i)
-    {
-         rectangle(original, objects[i], Scalar(0, 255, 0), 3);
-    }  
+//    for(int i=0;i<(int)objects.size();++i)
+//    {
+//         rectangle(original, objects[i], Scalar(0, 255, 0), 3);
+//    }  
   
-    imshow("detections", original);
+//    imshow("detections", original);
 
-    gettimeofday(&tendG, NULL);
-    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
-    printf("GPU Runtime: %f seconds\n", runtimeG);
+//    gettimeofday(&tendG, NULL);
+//    double runtimeG = (double) (tendG.tv_usec - tstartG.tv_usec) / 100000 + (double) (tendG.tv_sec - tstartG.tv_sec);
+//    printf("GPU Runtime: %f seconds\n", runtimeG);
 
     //CPU Detection
-    gettimeofday(&tstartC, NULL);
-    cv::Mat inputCPU(work_img);
-    vector<Rect> facesCPU;
-    Size minsize = cascade->getClassifierSize();
-    cascadeCPU.detectMultiScale(inputCPU, facesCPU, 1.1,
-                                         (filterRects || findLargestObject) ? 4 : 0,
-                                         (findLargestObject ? CASCADE_FIND_BIGGEST_OBJECT : 0)
-                                            | CASCADE_SCALE_IMAGE,
-                                         minsize);
+//    gettimeofday(&tstartC, NULL);
+//    cv::Mat inputCPU(work_img);
+//    vector<Rect> facesCPU;
+//    Size minsize = cascade->getClassifierSize();
+//    cascadeCPU.detectMultiScale(inputCPU, facesCPU, 1.1,
+//                                         (filterRects || findLargestObject) ? 4 : 0,
+//                                         (findLargestObject ? CASCADE_FIND_BIGGEST_OBJECT : 0)
+//                                            | CASCADE_SCALE_IMAGE,
+//                                         minsize);
 
     ///    
-    for(int i=0;i<(int)facesCPU.size();++i)
-    {
-         rectangle(work_img, facesCPU[i], Scalar(0, 255, 0), 3);
-    }
+//    for(int i=0;i<(int)facesCPU.size();++i)
+//    {
+//         rectangle(work_img, facesCPU[i], Scalar(0, 255, 0), 3);
+//    }
     
-    imshow("detections2", work_img);
+//    imshow("detections2", work_img);
 
-    gettimeofday(&tendC, NULL);
-    double runtimeC = (double) (tendC.tv_usec - tstartC.tv_usec) / 100000 + (double) (tendC.tv_sec - tstartC.tv_sec);
-    printf("CPU Runtime: %f seconds\n", runtimeC);
+//    gettimeofday(&tendC, NULL);
+//    double runtimeC = (double) (tendC.tv_usec - tstartC.tv_usec) / 100000 + (double) (tendC.tv_sec - tstartC.tv_sec);
+//    printf("CPU Runtime: %f seconds\n", runtimeC);
     
-    double speedup = runtimeC / runtimeG;
-    printf("speedup: %f \n", speedup);
+//    double speedup = runtimeC / runtimeG;
+//    printf("speedup: %f \n", speedup);
  
     //display
 //    for(int i=0;i<(int)objects.size();++i)
