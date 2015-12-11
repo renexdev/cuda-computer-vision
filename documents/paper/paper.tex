@@ -35,7 +35,7 @@
 
 \begin{document}
 
-\title{GPU-Accelerated Parallelization of Edge-Based Motion Detection Algorithms with the NVIDIA CUDA Framework}
+\title{GPU Acceleration of Machine Learning-Aided Facial Recognition and Edge-Based Motion Detection with NVIDIA CUDA}
 
 \author{
 	Emilio Del Vecchio, Kevin Lin, Senthil Natarajan\\
@@ -64,6 +64,19 @@ While CUDA is an excelent language for maximizing performance, it could be infea
 
 \subsection{Motivation}
 GPU parallelization is a powerful tool for accelerating image processing tasks. The motivation for our CUDA motion detection algorithm stems from the ease of creating a GPU implementation, due in large part to the simplicity of the CUDA APIs, and the diverse applications of motion detection. For example, motion detection is applied in real-time traffic analysis, vision-based security, and consumer technology (e.g. motion-triggered home automation solutions). Further, since our computer vision algorithm calculates the location of motion in a frame based on detected edges, our approach is both more accurate and supplemented with more specific data. Therefore, we view an opportunity use CUDA to explore the speedup possible by using a GPU to accelerate this common task in computer vision.
+
+
+\section{Facial Recognition Algorithm}
+Placeholder text
+
+\subsection{Placeholder}
+Placeholder text
+
+\subsection{Placeholder}
+Placeholder text
+
+\subsection{GPU Parallelization and CUDA Implementation}
+Placeholder text
 
 
 \section{Edge Detection Algorithm}
@@ -709,9 +722,9 @@ Python is a widely used big-data programming language because of its extensive l
 \section{GPU Speedup Results}
 Our code for separable convolution, computation of the image's gradient magnitude and angle, non-maximum suppression and selective thresholding, and computation of the thresholded difference and spatial difference density matrices has both serial CPU and parallel CUDA implementations. Here, we present speedup results for each of these procedures on various image sizes obtained on a system with the following hardware:
 \begin{itemize}
-	\item Intel Core i7 4790K @ 4.7 GHz (4C, 8T)
-	\item 16 GB of DDR3 memory @ 1600 MHz
-	\item NVIDIA GeForce GTX 750 (512 CUDA cores, 1653 MHz core clock, 6510 MHz memory clock, 2 GB video memory)
+	\item Intel Core i5 4200U @ 2.6 GHz (2C, 4T)
+	\item 8 GB of DDR3 memory @ 1600 MHz
+	\item NVIDIA GeForce GTX 860M (1152 CUDA cores, 1029 MHz core clock, 2500 MHz memory clock, 2 GB GGDR5 video memory)
 \end{itemize}
 
 \subsection{Separable Convolution}
@@ -723,15 +736,15 @@ The below results were obtained by convolving the same image, resized to various
 	\label{separable-convolution-speedup}
 	\begin{tabular}{llllll}
 	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
-	 $100 \times 100$ & $0.000191$ & $0.054855$ & $0.003482$ \\
-	 $500 \times 500$ & $0.004748$ & $0.002728$ & $1.740469$ \\
-	 $1000 \times 1000$ & $0.018850$ & $0.008431$ & $2.235796$ \\
-	 $2000 \times 2000$ & $0.074475$ & $0.034503$ & $2.158508$ \\
-	 $3000 \times 3000$ & $0.167459$ & $0.072181$ & $2.319987$ \\
-	 $4000 \times 4000$ & $0.299840$ & $0.136641$ & $2.194363$ \\
-	 $5000 \times 5000$ & $0.465225$ & $0.194512$ & $2.391755$ \\
-	 $6000 \times 6000$ & $0.673266$ & $0.276730$ & $2.432935$ \\
-	 $7500 \times 7500$ & $1.052294$ & $0.439262$ & $2.395595$ \\
+	 $100 \times 100$ & $0.000349$ & $0.229505$ & $0.001521$ \\
+	 $500 \times 500$ & $0.009001$ & $0.003902$ & $2.306766$ \\
+	 $1000 \times 1000$ & $0.034910$ & $0.011905$ & $2.932381$ \\
+	 $2000 \times 2000$ & $0.138583$ & $0.042788$ & $3.238829$ \\
+	 $3000 \times 3000$ & $0.311335$ & $0.093797$ & $3.319243$ \\
+	 $4000 \times 4000$ & $0.559149$ & $0.165629$ & $3.375912$ \\
+	 $5000 \times 5000$ & $0.864850$ & $0.248457$ & $3.480884$ \\
+	 $6000 \times 6000$ & $1.253738$ & $0.357840$ & $3.503627$ \\
+	 $7500 \times 7500$ & $1.960140$ & $0.558480$ & $3.509777$ \\
 	\end{tabular}
 \end{table}
 \begin{figure}[h]
@@ -750,14 +763,14 @@ As discussed previously, our CUDA implementation of non-maximum suppression and 
 	\label{non-maximum-suppression-selective-thresholding-speedup}
 	\begin{tabular}{llllll}
 	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
-	 $100 \times 100$ & $0.001701$ & $0.000332$ & $5.123494$ \\
-	 $500 \times 500$ & $0.027121$ & $0.009488$ & $2.858453$ \\
-	 $1000 \times 1000$ & $0.083744$ & $0.028291$ & $2.960093$ \\
-	 $2000 \times 2000$ & $0.237126$ & $0.104160$ & $2.276555$ \\
-	 $3000 \times 3000$ & $0.436223$ & $0.207502$ & $2.102259$ \\
-	 $4000 \times 4000$ & $0.608094$ & $0.341184$ & $1.782305$ \\
-	 $5000 \times 5000$ & $0.823099$ & $0.484530$ & $1.698758$ \\
-	 $6000 \times 6000$ & $1.020302$ & $0.668001$ & $1.527396$ \\
+	 $100 \times 100$ & $0.033848$ & $0.000347$ & $97.544669$ \\
+	 $500 \times 500$ & $0.070105$ & $0.006773$ & $10.350657$ \\
+	 $1000 \times 1000$ & $0.213390$ & $0.022899$ & $9.318748$ \\
+	 $2000 \times 2000$ & $0.616050$ & $0.078498$ & $7.847971$ \\
+	 $3000 \times 3000$ & $1.114336$ & $0.160118$ & $6.959467$ \\
+	 $4000 \times 4000$ & $1.627116$ & $0.265466$ & $6.129282$ \\
+	 $5000 \times 5000$ & $2.215267$ & $0.388015$ & $5.709230$ \\
+	 $6000 \times 6000$ & $2.764201$ & $0.528509$ & $5.230187$ \\
 	\end{tabular}
 \end{table}
 \begin{figure}[h]
@@ -776,15 +789,15 @@ The below results reflect the speedup in the complete procedure of calculating t
 	\label{motion-area-speedup}
 	\begin{tabular}{llllll}
 	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
-	 $100 \times 100$ & $0.004406$ & $0.002055$ & $2.144039$ \\
-	 $500 \times 500$ & $0.116421$ & $0.028079$ & $4.146195$ \\
-	 $1000 \times 1000$ & $0.490470$ & $0.107598$ & $4.558356$ \\
-	 $2000 \times 2000$ & $1.863727$ & $0.424997$ & $4.385271$ \\
-	 $3000 \times 3000$ & $4.334172$ & $0.952842$ & $4.548679$ \\
-	 $4000 \times 4000$ & $7.730778$ & $1.778392$ & $4.347061$ \\
-	 $5000 \times 5000$ & $12.174515$ & $2.660347$ & $4.576288$ \\
-	 $6000 \times 6000$ & $17.628128$ & $3.865616$ & $4.560238$ \\
-	 $7500 \times 7500$ & $28.354028$ & $6.118255$ & $4.634333$ \\
+	 $100 \times 100$ & $0.008400$ & $0.001652$ & $5.084746$ \\
+	 $500 \times 500$ & $0.214381$ & $0.027413$ & $7.820414$ \\
+	 $1000 \times 1000$ & $0.866711$ & $0.097432$ & $8.895548$ \\
+	 $2000 \times 2000$ & $3.468732$ & $0.388721$ & $8.923449$ \\
+	 $3000 \times 3000$ & $8.320342$ & $0.871464$ & $9.547545$ \\
+	 $4000 \times 4000$ & $14.841659$ & $1.569390$ & $9.456960$ \\
+	 $5000 \times 5000$ & $22.094181$ & $2.546088$ & $8.677697$ \\
+	 $6000 \times 6000$ & $31.911879$ & $3.624211$ & $8.805193$ \\
+	 $7500 \times 7500$ & $55.772766$ & $13.077988$ & $4.264629$ \\
 	\end{tabular}
 \end{table}
 \begin{figure}[h]
@@ -822,11 +835,11 @@ Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate re
 
 \section{Conclusion}
 Our CUDA implementation of both the edge detection and motion detection algorithms demonstrate that parallelized, GPU computation results in significant speedups compared to a serial, CPU implementation. In all benchmarked cases (separable convolution with a Gaussian filter, edge detection via non-maximum suppression and selective thresholding, and motion area estimation from a difference density map), we find that the GPU implementation, running on a mid-range graphics card, demonstrated anywhere between a 1.5x to 4.6x speedup over a relatively high-performance, overclocked CPU. Further, for each algorithm, we find that the speedup asymptotically approaches a general range as the input size increases.
-\par It is important to note the edge case for the separable convolution algorithm on images of small input sizes (namely, near the dimensions $100 \times 100$, or $10000$ total pixels). For this case, we observe a remarkably underwhelming speedup ratio of 0.003482, suggesting that a CPU implementation is nearly 300 times as fast as a GPU implementation (Table \ref{separable-convolution-speedup}). We speculate that, because the input size is very small (especially in comparison to the larger versions of the same image, which exceed 55 million total pixels in size), the additional overhead caused by launching the GPU kernel (e.g. allocating device memory, copying the host arrays onto the device, and copying the device arrays back to the host following completion of the computation) causes the GPU code to take much longer to run than the more directly implemented CPU code. This reasoning is backed by the fact that, at a $250000$ total pixel count (a $500 \times 500$ image), the speedup ($1.740469$) is still much lower than the asymptotic value it approaches as the pixel count exceeds about 1 million ($2.235796$).
+\par It is important to note the edge case for the separable convolution algorithm on images of small input sizes (namely, near the dimensions $100 \times 100$, or $10000$ total pixels). For this case, we observe a remarkably underwhelming speedup ratio of 0.001521, suggesting that a CPU implementation is nearly 700 times as fast as a GPU implementation (Table \ref{separable-convolution-speedup}). We speculate that, because the input size is very small (especially in comparison to the larger versions of the same image, which exceed 55 million total pixels in size), the additional overhead caused by launching the GPU kernel (e.g. allocating device memory, copying the host arrays onto the device, and copying the device arrays back to the host following completion of the computation) causes the GPU code to take much longer to run than the more directly implemented CPU code. This reasoning is backed by the fact that, at a $250000$ total pixel count (a $500 \times 500$ image), the speedup ($2.306766$) is still much lower than the asymptotic value it approaches as the pixel count exceeds about 1 million ($2.932381$).
 \par However, an opposite trend appears to be in play for the speedup of the non-maximum suppression and selective thresholding algorithm (Table \ref{non-maximum-suppression-selective-thresholding-speedup}), where we observe a high speedup for low input sizes and a lower speedup for high input sizes. We speculate that this is most likely due to the overhead of running two separate parallel tasks in sequence, both of which require the same amount of memory. As a result of our implementation, not only does a large input size result in a greater percentage of the time that any thread is idle, but it also doubles the total memory footprint of the algorithm. This is evident from the significantly higher memory consumption of this procedure compared to the others; an input size of 36 million pixels nearly maxes out the 2 GB of available GPU memory, while the other algorithms consume no more than a few hundred megabytes on the largest benchmarking image we use. Despite this trend, the speedup is still greater than 1 for large input sizes, suggesting that a GPU implementation is still consistently faster than its CPU counterpart.
 
 \section*{Source Code}
-The full source code for this project, including the CUDA and Python implementations of all of our algorithms, is available at \texttt{https://github.com/LINKIWI/elec-301}.
+The full source code for this project, including CUDA, Python, and MATLAB implementations of all of our algorithms, is open sourced and available at \texttt{https://github.com/LINKIWI/cuda-computer-vision}.
 
 \section*{Team}
 \begin{itemize}
@@ -837,7 +850,8 @@ The full source code for this project, including the CUDA and Python implementat
 
 \section*{Acknowledgments}
 \begin{itemize}
-	\item \textbf{CJ Barberan}, Ph.D. student, Rice University Electrical and Computer Engineering---\textit{for mentoring the entire team in the conception, development, and extensive debugging of our project}.
+	\item \textbf{CJ Barberan}, ECE Ph.D. student, Rice University---\textit{for mentoring the entire team in the conception, development, and extensive debugging of our project}.
+	\item \textbf{Richard Baraniuk}, Victor E. Cameron Professor of ECE, Rice University---\textit{for his Fall 2015 instruction of the signal processing course that inspired this project}.
 \end{itemize}
 
 \end{document}
