@@ -55,8 +55,12 @@ GPUs provide a powerful platform for parallel computations on large data inputs,
 Graphics processing units (GPUs) are rapidly gaining popularity as a platform for parallelized computations on massive sets of data. Since much of the computations in image processing and computer vision are easily parallelized, graphics operations on GPUs achieve significant speedups compared to those done on their serial, CPU counterparts. Further, SDKs like the NVIDIA CUDA framework provide developers easy APIs to take advantage of the parallel computing power of GPUs. We take full advantage of the computational benefits of GPUs by implementing edge detection and motion detection algorithms in CUDA C.
 \par In this paper, we first detail the theory for our edge detection and motion detection algorithms. Then, we describe the GPU code implementation of those algorithms with NVIDIA CUDA. Finally, we present speedup results achieved by our CUDA implementation with respect to a reference serial, CPU implmentation.
 
+
 \subsection{GPU Computation and the NVIDIA CUDA Framework}
 Formally, NVIDIA CUDA is a parallel computing platform and programming model that exposes familiar C-based APIs for parallelized computations. CUDA is NVIDIA's platform for general-purpose computing on graphics processing units (commonly, GPGPU or GP$^2$U), or the use of a GPU for computations traditionally handled by the CPU. Generally, GPGPU is used to exploit the improved multithreaded performance and raw floating-point computational ability of GPUs over CPUs. For example, on modern hardware, an NVIDIA GeForce GTX 970 (1664 CUDA cores) exhibits peak single-precision floating point performance of nearly 3500 GFLOPS (floating-point operations per second), while an Intel Core i7 4790K (4C, 8T) achieves 100 GFLOPS. Our goal is to demonstrate the performance of GPU computing by solving a handful of existing problems in computer vision with CUDA: namely, edge detection and motion detection.
+
+\subsection{OpenCV and Python}
+While CUDA is an excelent language for maximizing performance, it could be infeasible due to inexperience with C, time constraints, or lack of an NVIDIA GPU. To address these constraints, we also implemented our algorithms in Python using OpenCV. Python was chosen because it is very easy for inexperienced programmers to use and OpenCV was chosen because it offers many common image processing algorithms in a variety of languages. 
 
 \subsection{Motivation}
 GPU parallelization is a powerful tool for accelerating image processing tasks. The motivation for our CUDA motion detection algorithm stems from the ease of creating a GPU implementation, due in large part to the simplicity of the CUDA APIs, and the diverse applications of motion detection. For example, motion detection is applied in real-time traffic analysis, vision-based security, and consumer technology (e.g. motion-triggered home automation solutions). Further, since our computer vision algorithm calculates the location of motion in a frame based on detected edges, our approach is both more accurate and supplemented with more specific data. Therefore, we view an opportunity use CUDA to explore the speedup possible by using a GPU to accelerate this common task in computer vision.
@@ -602,6 +606,7 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 	\
 \end{algorithm}
 
+
 \subsection{GPU Parallelization and CUDA Implementation}
 Our CUDA implementation of our motion detection algorithm is similar to that for our implementation of separable convolution and edge detection. Using the same 16 threads per block, we divide the input image into the appropriate number of blocks such that the thresholded difference computation at each index $(i, j)$ of Algorithm \ref{difference-matrix-algorithm} has its own thread. Thus, each element of $\boldsymbol{D}$ is calculated in parallel.
 \begin{lstlisting}[
@@ -698,6 +703,8 @@ __global__ void motion_area_estimate(
 }
 \end{lstlisting}
 
+\subsection{High Level Python Implementation}
+Python is a widely used big-data programming language because of its extensive library support in such areas and its ease of use.
 
 \section{GPU Speedup Results}
 Our code for separable convolution, computation of the image's gradient magnitude and angle, non-maximum suppression and selective thresholding, and computation of the thresholded difference and spatial difference density matrices has both serial CPU and parallel CUDA implementations. Here, we present speedup results for each of these procedures on various image sizes obtained on a system with the following hardware:

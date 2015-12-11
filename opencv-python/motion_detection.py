@@ -29,8 +29,8 @@ def difference(frame1, frame2):
         for j in range(width):
             if frame1[i, j] != frame2[i, j]:
                 diff[i, j] = 255
-                for i_prime in range(-B, B):
-                    for j_prime in range(-B, B):
+                for i_prime in range(-B, B+1):
+                    for j_prime in range(-B, B+1):
                         if i+i_prime < height and i+i_prime >= 0 and j+j_prime < width and j+j_prime >= 0:
                             if frame1[i+i_prime, j+j_prime] == frame2[i+i_prime, j+j_prime]:
                                 diff[i+i_prime, j+j_prime] = 0
