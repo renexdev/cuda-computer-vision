@@ -45,7 +45,7 @@ void recog(string imageName, string mode)
 
                 cuda::GpuMat inputGPU(work_img);
                 cuda::GpuMat faces;
-                faces.create(10000000, 10000000, cv::DataType<cv::Rect>::type); ///
+                faces.create(1, 10000, cv::DataType<cv::Rect>::type); ///
                 cascade->setFindLargestObject(findLargestObject);
                 cascade->setScaleFactor(1.2);
                 cascade->setMinNeighbors((filterRects || findLargestObject) ? 4 : 0);
@@ -101,18 +101,6 @@ int main(int argc, char* argv[])
         images[6] = "Senthil5000.jpg";
         images[7] = "Senthil6000.jpg";
         images[8] = "Senthil7500.jpg";
-/*
-	
-	images[0] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/senthil100.jpg";
-	images[1] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/senthil500.jpg";
-	images[2] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/senthil1000.jpg";
-	images[3] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil2000.jpg";
-	images[4] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil3000.jpg";
-	images[5] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil4000.jpg";
-	images[6] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil5000.jpg";
-	images[7] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil6000.jpg";
-	images[8] = "/media/kiwi/Windows 10/Users/Kevin Lin/Work Folders/OneDrive/Homework/Rice University/ELEC 301 - Signals and Systems/Project/main/opencv-object-detect/Senthil7500.jpg";
-*/	
 
         for (int i = 0; i < 9; i++)
         {
