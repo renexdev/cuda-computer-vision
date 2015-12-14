@@ -15,8 +15,8 @@
 \definecolor{gray}{rgb}{0.5,0.5,0.5}
 \definecolor{mauve}{rgb}{0.58,0,0.82}
 
-\lstset{frame=tb,
-	language=C,
+\lstset{
+	frame=tb,
 	aboveskip=3mm,
 	belowskip=3mm,
 	showstringspaces=false,
@@ -35,7 +35,7 @@
 
 \begin{document}
 
-\title{GPU Acceleration of Machine Learning-Aided Facial Recognition and Edge-Based Motion Detection with NVIDIA CUDA}
+\title{GPU Acceleration of Edge-Based Motion Detection and Machine Learning-Aided Facial Recognition with NVIDIA CUDA}
 
 \author{
 	Emilio Del Vecchio, Kevin Lin, Senthil Natarajan\\
@@ -47,23 +47,23 @@
 
 
 \begin{abstract}
-GPUs provide a powerful platform for parallel computations on large data inputs, namely images. In this paper, we explore a GPU-based implementation of a simplified adaptation of existing edge detection algorithms fast enough to operate on frames of a continuous video stream in real-time. We also demonstrate practical applications of edge detection, including an edge-based method for motion detection estimation. Finally, we demonstrate the speedups of over 2x we achieve with GPU parallelism, as compared to a reference serial CPU-based implementation.
+GPUs provide a powerful platform for parallel computations on large data inputs, namely images. In this paper, we explore a GPU-based implementation of a simplified adaptation of existing edge detection algorithms fast enough to operate on frames of a continuous video stream in real-time. We also demonstrate a practical application of edge detection--an edge-based method for motion detection estimation. Additionally, we explore the GPU-CPU speedup of existing OpenCV GPU computation libraries, namely, for facial recognition algorithms. Finally, we demonstrate the speedups as high as 10x we achieve with GPU parallelism, as compared to a reference serial CPU-based implementation.
 \end{abstract}
 
 
 \section{Introduction}
-Graphics processing units (GPUs) are rapidly gaining popularity as a platform for parallelized computations on massive sets of data. Since much of the computations in image processing and computer vision are easily parallelized, graphics operations on GPUs achieve significant speedups compared to those done on their serial, CPU counterparts. Further, SDKs like the NVIDIA CUDA framework provide developers easy APIs to take advantage of the parallel computing power of GPUs. We take full advantage of the computational benefits of GPUs by implementing edge detection and motion detection algorithms in CUDA C.
-\par In this paper, we first detail the theory for our edge detection and motion detection algorithms. Then, we describe the GPU code implementation of those algorithms with NVIDIA CUDA. Finally, we present speedup results achieved by our CUDA implementation with respect to a reference serial, CPU implmentation.
+Graphics processing units (GPUs) are rapidly gaining popularity as a platform for parallelized computations on massive sets of data. Since much of the computations in image processing and computer vision are easily parallelized, graphics operations on GPUs achieve significant speedups compared to those done on their serial, CPU counterparts. Further, SDKs like the NVIDIA CUDA framework provide developers easy APIs to take advantage of the parallel computing power of GPUs. We take full advantage of the computational benefits of GPUs by implementing edge detection and motion detection algorithms in CUDA C, and making use of existing CUDA libraries for our facial recognition algorithm.
+\par In this paper, we first detail the theory for our edge detection, motion detection, and facial recognition algorithms in Sections \ref{edge-detection-section}, \ref{motion-detection-section}, and \ref{facial-recognition-section}, respectively. At the end of Sections \ref{edge-detection-section} and \ref{motion-detection-section}, we describe our GPU code implementation of these algorithms with NVIDIA CUDA. At the end of Section \ref{facial-recognition-section}, we comment on the performance we achieve with a prebuilt, CUDA-based OpenCV GPU computation library, as opposed to that we achieve with a custom CUDA implementation as in Sections \ref{edge-detection-section} and \ref{motion-detection-section}. We present speedup results achieved with our CUDA implementation with respect to a reference serial, CPU implmentation in Section \ref{results}. Finally, we conclude in Section \ref{conclusion}.
 
 
 \subsection{GPU Computation and the NVIDIA CUDA Framework}
-Formally, CUDA (Compute Unified Device Architecture) is a parallel computing platform and programming model that exposes familiar C-based APIs for parallelized computations. CUDA is NVIDIA's platform for general-purpose computing on graphics processing units (commonly, GPGPU or GP$^2$U), or the use of a GPU for computations traditionally handled by the CPU. Generally, GPGPU is used to exploit the improved multithreaded performance and raw floating-point computational ability of GPUs over CPUs. For example, on modern hardware, an NVIDIA GeForce GTX 970 (1664 CUDA cores) exhibits peak single-precision floating point performance of nearly 3500 GFLOPS (floating-point operations per second), while an Intel Core i7 4790K (4C, 8T) achieves 100 GFLOPS. Our goal is to demonstrate the performance of GPU computing by solving a handful of existing problems in computer vision with CUDA: namely, edge detection and motion detection.
+Formally, CUDA (Compute Unified Device Architecture) is a parallel computing platform and programming model that exposes familiar C-based APIs for parallelized computations. CUDA is NVIDIA's platform for general-purpose computing on graphics processing units (commonly, GPGPU or GP$^2$U), or the use of a GPU for computations traditionally handled by the CPU. Generally, GPGPU is used to exploit the improved multithreaded performance and raw floating-point computational ability of GPUs over CPUs. For example, on modern hardware, an NVIDIA GeForce GTX 970 (1664 CUDA cores) exhibits peak single-precision floating point performance of nearly 3500 GFLOPS (floating-point operations per second), while an Intel Core i7 4790K (4C, 8T) achieves 100 GFLOPS. Our goal is to demonstrate the performance of GPU computing by solving a handful of existing problems in computer vision with CUDA: namely, edge detection, motion detection, and facial recognition.
 
 \subsection{OpenCV and Python}
-While CUDA is an excelent language for maximizing performance, it could be infeasible due to inexperience with C, time constraints, or lack of an NVIDIA GPU. To address these constraints, we also implemented our algorithms in Python using OpenCV. Python was chosen because it is very easy for inexperienced programmers to use and OpenCV was chosen because it offers many common image processing algorithms in a variety of languages. Unfortunately using OpenCV limits us to the library's implementation, does not currently support the use of GPU parallelization in Python. To take advantage of the GPU and parallelization in Python we would have to use C wrappers, which defeats the purpose of our implementation in Python.
+While CUDA is an excellent language for maximizing performance, it could be infeasible due to inexperience with C, time constraints, or lack of an NVIDIA GPU. To address these constraints, we also implemented our algorithms in Python using the Python OpenCV library. We chose Python because it is very easy for inexperienced programmers to use, and we chose OpenCV because it offers implementations of many common image processing algorithms. Unfortunately, using OpenCV limits us to the library's implementation, which does not currently support the use of GPU parallelization in Python without using C wrappers. For each of the algorithms in this paper, we present code snippets that provide a sample CPU-based Python implementation alongside a GPU-based parallel CUDA implementation.
 
 \subsection{Motivation}
-GPU parallelization is a powerful tool for accelerating image processing tasks. The motivation for our CUDA motion detection algorithm stems from the ease of creating a GPU implementation, due in large part to the simplicity of the CUDA APIs, and the diverse applications of motion detection. For example, motion detection is applied in real-time traffic analysis, vision-based security, and consumer technology (e.g. motion-triggered home automation solutions). Further, since our computer vision algorithm calculates the location of motion in a frame based on detected edges, our approach is both more accurate and supplemented with more specific data. Therefore, we view an opportunity use CUDA to explore the speedup possible by using a GPU to accelerate this common task in computer vision.
+GPU parallelization is a powerful tool for accelerating image processing tasks. The motivation for our CUDA motion detection and facial recognition algorithms stems from their diverse applications and the ease of coding a GPU implementation, which is due in large part to the simplicity of CUDA APIs and OpenCV libraries. For example, motion detection is applied in real-time traffic analysis, vision-based security, and consumer technology (e.g. motion-triggered home automation solutions). Further, since our computer vision algorithm calculates the location of motion in a frame based on detected edges, our approach is both more accurate and supplemented with more specific data. Facial recognition is applied in real-time security, smart photographic analysis, and military purposes, including target-based missile guiding systems. Therefore, we view an opportunity use CUDA to explore the speedup possible by using a GPU to accelerate these common tasks in computer vision.
 
 \begin{figure*}
 	\centering
@@ -73,33 +73,8 @@ GPU parallelization is a powerful tool for accelerating image processing tasks. 
 \end{figure*}
 
 
-\section{Facial Recognition Algorithm}
-Placeholder text
-
-\subsection{Placeholder}
-Placeholder text
-
-\subsection{Placeholder}
-Placeholder text
-
-\subsection{GPU Parallelization and CUDA Implementation}
-Placeholder text
-
-
-\section{Facial Recognition Algorithm}
-Placeholder text
-
-\subsection{Placeholder}
-Placeholder text
-
-\subsection{Placeholder}
-Placeholder text
-
-\subsection{GPU Parallelization and CUDA Implementation}
-Placeholder text
-
-
 \section{Edge Detection Algorithm}
+\label{edge-detection-section}
 Edge detection is the process of determining the locations of boundaries that separate objects, or sections of objects, in an image. This edge data simplifies the features of an image to only its basic outlines, which makes it a convenient input for many other problems in computer vision, including motion detection and tracking, object classification, three-dimensional reconstruction, and others. The edge detection algorithm we present is composed of three stages:
 \begin{enumerate}
 	\item Reduce the amount of high-frequency noise from the image using a two-dimensional low pass filter.
@@ -363,7 +338,8 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 We begin with a parallelized implementation of separable convolution, since the same convolution operation is applied for both the initial Gaussian low pass filter and the edge detecting Sobel filter. Our parallel implementation involves first independently computing the convolution with the horizontal filter ($h_2$ in Equation \eqref{separable-convolution-definition}), then convolving that result with the vertical filter $h_1$. In computing the output $y[m, n]$ at every index $(i, j)$, we launch a kernel with 16 threads per block, where the total number of blocks along one dimension is equal to the size of that dimension divided by 16. For our 5312 x 2988 test images, this corresponds to 332 blocks in the horizontal direction and 186 blocks in the vertical direction, each with 16 computational threads.
 \begin{lstlisting}[
 	caption=Grid configuration for the separable convolution device kernel,
-	label=grid-configuration
+	label=grid-configuration,
+	language=C
 ]
 #define TX 16
 #define TY 16
@@ -382,7 +358,8 @@ vertical_convolve<<<grid_size_vertical, block_size>>>(...);
 \par The convolution on the device executes only one serial loop across the dimensions of the filter exactly as it is defined in Equation \eqref{separable-convolution-formula}. This sum is then stored in the output array\footnote{In our implementation, we represent a two-dimensional image as a one-dimensional array by directly concatenating the rows of the matrix into a single array. Thus, for a matrix of size $M \times N$, the index $(i, j)$ would correspond to index $Ni + j$ in our one-dimensional array.} according to the block index, block size, and thread index. The implementation is modularized so that any separable filter can be applied to an input matrix.
 \begin{lstlisting}[
 	caption=Implementation of horizontal and vertical separated convolution,
-	label=separable-convolution-implementation
+	label=separable-convolution-implementation,
+	language=C
 ]
 __global__ void horizontal_convolve(int *d_out, int *x, int *h, int x_width, int x_height, int h_width, int h_height) {
     const int r = blockIdx.y * blockDim.y + threadIdx.y;
@@ -423,7 +400,8 @@ __global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x
 \end{enumerate}
 \begin{lstlisting}[
 	caption=GPU computation of gradient magnitude and angle,
-	label=gradient-magnitude-angle-implementation
+	label=gradient-magnitude-angle-implementation,
+	language=C
 ]
 __global__ void gradient_magnitude_and_direction(
 		double *dev_magnitude_output,
@@ -444,7 +422,8 @@ __global__ void gradient_magnitude_and_direction(
 Following completion of the computation of Listing \ref{gradient-magnitude-angle-implementation}, the result is input to our implementation of Algorithm \ref{non-maximum-suppression-selective-thresholding-algorithm}. While each of these two tasks operates in parallel (e.g. that each pixel's magnitude/angle or edge property is computed in parallel with the other pixels), the two tasks themselves execute serially. This is due to the fact that the non-maximum suppression and selective thresholding procedure relies on the gradient and angle at each pixel to have already been computed when the algorithm begins. Nonetheless, despite the fact that such serial separation of tasks reduces redundancies in gradient magnitude/angle computations\footnote{Computational redundancy arises from the fact that the non-maximum suppression and selective thresholding procedure needs access to the magnitude and angle of all the pixels in a box of area $\alpha^2$ centered at the current pixel. Calculating these properties directly for each pixel during the algorithm will result in calculation of the same magnitude and angle for the same pixel multiple times.}, further optimization is possible to reduce the amount of time that any thread is idle (which occurs after a particular pixel's gradient magnitude/angle is computed but before its edge property is computed).
 \begin{lstlisting}[
 	caption=GPU non-maximum suppression and selective thresholding,
-	label=non-maximum-suppression-selective-thresholding-implementation
+	label=non-maximum-suppression-selective-thresholding-implementation,
+	language=C
 ]
 __global__ void thresholding_and_suppression(
 	int *dev_output,
@@ -507,8 +486,21 @@ __global__ void thresholding_and_suppression(
 }
 \end{lstlisting}
 
+\subsection{High-Level Python Implementation}
+The Python OpenCV library exposes an API for the entire Canny edge detection algorithm. The Canny algorithm is similar to, but more nuanced than, our algorithm, substituting our selective thresholding procedure for hysteresis. However, the end results are very similar. As is evident from Listing \ref{python-edge-detection-implementation}, the procedure is very straightforward.
+\begin{lstlisting}[
+	caption=Python implementation of Canny edge detection with OpenCV,
+	label=python-edge-detection-implementation,
+	language=Python
+]
+LOW_THRESHOLD = 100
+HIGH_THRESHOLD = 200
+edges = cv2.Canny(img, LOW_THRESHOLD, HIGH_THRESHOLD)
+\end{lstlisting}
+
 
 \section{Motion Detection Algorithm}
+\label{motion-detection-section}
 Our motion detection algorithm compares the edges from two frames temporally separated by a small interval of time and attempts to estimate regions of the frame that exhibit movement or motion. This process is then repeated continuously to provide a real-time visualization of the regions of movement in a continuous video stream. The motion detection algorithm we present is composed of the following steps:
 \begin{enumerate}
 	\item Given two frames $\boldsymbol{F}_1$ and $\boldsymbol{F}_2$ separated by a time interval of $\Delta t$, compute its edges $\boldsymbol{E}_1$ and $\boldsymbol{E}_2$.
@@ -644,7 +636,8 @@ $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of p
 Our CUDA implementation of our motion detection algorithm is similar to that for our implementation of separable convolution and edge detection. Using the same 16 threads per block, we divide the input image into the appropriate number of blocks such that the thresholded difference computation at each index $(i, j)$ of Algorithm \ref{difference-matrix-algorithm} has its own thread. Thus, each element of $\boldsymbol{D}$ is calculated in parallel.
 \begin{lstlisting}[
 	caption=GPU computation of thresholded difference matrix,
-	label=difference-filter-implementation
+	label=difference-filter-implementation,
+	language=C
 ]
 __global__ void difference_filter(
 	int *dev_out,
@@ -682,7 +675,8 @@ __global__ void difference_filter(
 The construction of the difference density matrix as in Algorithm \ref{difference-density-matrix-algorithm} is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}'$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}'$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
 \begin{lstlisting}[
 	caption=GPU computation of the difference density matrix,
-	label=difference-density-implementation
+	label=difference-density-implementation,
+	language=C
 ]
 __global__ void spatial_difference_density_map(
 	double *density_map,
@@ -711,7 +705,8 @@ __global__ void spatial_difference_density_map(
 The generation of the motion area estimation image is relatively straightforward: we map the index $(i, j)$ of $\boldsymbol{D}'$ back to an index $(r, c)$ where $r < M \wedge c < N$, and set the value at that index high or low accordingly.
 \begin{lstlisting}[
 	caption=GPU generation of the motion area estimation image,
-	label=motion-area-estimation-implementation
+	label=motion-area-estimation-implementation,
+	language=C
 ]
 __global__ void motion_area_estimate(
 	int *motion_area,
@@ -736,12 +731,15 @@ __global__ void motion_area_estimate(
 }
 \end{lstlisting}
 
-\subsection{High Level Python Implementation}
-The Python implementation of Algorithm 3 is very straightforward and looks almost exactly like the pseudo-code, making it easy to implement even for those with minimal programming experience.
+\subsection{High-Level Python Implementation}
+The Python implementation of Algorithm \ref{difference-density-matrix-algorithm} is very straightforward and looks almost exactly like the pseudo-code, making it easy to implement even for those with minimal programming experience.
 \begin{lstlisting}[
 	caption=Python implementation of the motion area estimation image,
-	label=python-motion-area-estimattion-implementation
+	label=python-motion-area-estimattion-implementation,
+	language=Python
 ]
+import numpy as np
+
 def detect_motion(e1, e2):
     height, width, depth = np.shape(e1)
     d = difference(e1, e2)
@@ -758,8 +756,119 @@ def detect_motion(e1, e2):
     return d_prime
 \end{lstlisting}
 
+
+\section{Facial Recognition Algorithm}
+\label{facial-recognition-section}
+Our facial recognition implementation is based off of the HAAR features-based cascade classifiers method proposed by Viola-Jones in 2001. It's split into two phases: training and detection. The algorithm is as follows:
+\begin{enumerate}
+	\item Extract HAAR features of a face from a set of positive and negative training images. 
+	\item Use adaptive boosting machine learning to train a multi-stage, or cascade, classifier against positive and negative HAAR features. 
+	\item Apply a final cascade classifier to a loaded image or real time video frame. 
+\end{enumerate}
+Due to the resource capacity necessary to train a full facial recognition classifier, we used a pre-trained frontal face cascade classifier and used OpenCV's object detection library, which encapsulates the algorithm above, and whose theory detailed in the following sections.
+
+\subsection{HAAR Feature Extraction}
+In mathematics analysis, Haar wavelets are a sequence of rescaled, square-like functions. In image processing, Haar features are so named for their resemblance to Haar wavelets. Haar features are regularities identified in all human faces, by comparing light and dark gradients across the face. These are split into edge (two-rectangle) features, line (three-rectangle) features, and diagonal (four-rectangle) features.
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{haar_features.png}
+	\caption{Example application of HAAR features on a face}
+    \label{haar-features-face-example}
+\end{figure}
+\par Each feature is obtained by comparing the pixel intensity in the white boxes against the pixel intensity in the dark boxes for a wide sample of sub-windows across the entire image. A 24x24 pixel image window can produce over 160,000 features that need to be classified, in some sense, “oversampling” the face.
+\par The rectangle features can be computed by splitting the image into sub-windows called integral images. An integral image at a point $i'(x, y)$ is the sum of all pixels to the top and to the left of that point.
+\[
+i'(x, y) = \sum_{m \leq x, n \leq y}{i(m, n)}
+\]
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{integral_image.png}
+	\caption{Integral image on a face}
+    \label{integral-image-face}
+\end{figure}
+Since an integral image includes all previously-computed integral images contained in its window, in the image of Figure \ref{integral-image-face}, the region A can be computed as
+\[
+A = i'(4) + i'(1) - i'(2) - i'(3)
+\]
+Any such rectangular sum can be computed using four array references.
+
+\subsection{Cascade Classifier Training}
+It's far too resource intensive to evaluate over 160,000 images for each 24x24 pixel window. However, we can take advantage of the fact that only a very small fraction of extracted sub-windows in an uncropped image will correspond to accurate facial features. To do so, we use a cascaded variation of the Adaptive Boosting (or AdaBoost) machine learning algorithm. AdaBoost aims to determine the optimal binary threshold of HAAR features which best separate negative and positive samples.
+\begin{algorithm}[]
+	\smaller
+	\label{adaboost-classifier-algorithm}
+	\caption{AdaBoost classifier training}
+	
+	\KwIn{Set of training images $I$, where each image $i \in I$ is a two-dimensional matrix representing the image, and is labeled as either a positive or negative sample image; $m$, the number of positive samples; $l$, the number of negative samples; $F$, the set of features extracted from images in $I$; $\theta_f, \forall f \in F$, denoting a threshold for weakly classifying a feature match}
+	\KwOut{Strong classifier function $h(x)$ whose value is $1$ if the image $x$ contains a face, and $0$ otherwise}
+	
+	\nl Initialize $w$ to a mapping from images to image weights\;
+	\nl Initialize $t$ to a mapping from images to the constant $1$ or $0$\;
+	\nl \ForEach {$i \in I$} {
+		\nl \If {$i$ \textnormal{is a positive training sample}} {
+			\nl $t_i \gets 1$\;
+			\nl $w_i \gets \frac{1}{2m}$\;
+		}
+		\nl \Else {
+			\nl $t_i \gets 0$\;
+			\nl $w_i \gets \frac{1}{2l}$\;
+		}
+	}
+	\nl \ForEach {$f \in F$} {
+	\nl $g_f \gets \textnormal{ trained weak classifier  } \begin{cases}1 & \textnormal{value of } f < \theta_f \\ 0 & \textnormal{else}\end{cases}$\;
+		\nl \ForEach {$i \in I$} {
+			\nl $w' \gets w \textnormal{ normalized such that } \sum_{k \in I} w_k = 1$\;
+			\nl $\varepsilon_f \gets \textnormal{the minimum value of the error } \sum_{k \in I} w'_k |g_f(i) - t_i|$\;
+			\nl $\beta_f \gets \textnormal{weight inversely proportional to } \varepsilon_f$\;
+			\nl $w_i \gets \beta_f w'_i$\;
+		}
+	}
+	\nl $h(x) \gets \begin{cases}1 & \sum_{f \in F} g_f(x) \log{\frac{1}{\beta_f}} \geq \frac{1}{2} \sum_{f \in F} \log{\frac{1}{\beta_f}} \\ 0 & \textnormal{else}\end{cases}$\;
+	\nl \Return $h(x)$\;
+	\
+\end{algorithm}
+\par From one pass at the AdaBoost algorithm, it is clear that running hundreds of thousands of features on millions of samples will be too computationally intensive. However, most features in a general, uncropped image do not correspond to a face. This allows us to set up a cascaded variant of the AdaBoost algorithm.
+\par In cascading, all the features are grouped into several stages, where each stage checks for a certain amount of features. It's set up such that the most common facial features are grouped into the earliest cascade stages. This allows us to discard most non-facial regions early on and only spend successive computations on potentially positive regions. If a region fails during a stage, it is discarded, the cascade training stops, and then resets at the next potentially positive region. This vastly improves resource and time efficiency of classifier training.
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{cascade_framework.png}
+	\caption{Cascade training framework}
+    \label{cascade-framework}
+\end{figure}
+
+\subsection{Application of Classsifier to Facial Recognition}
+The final output of the cascade classifier training is a classifier XML file that contains the results of the training. OpenCV then provides an easy module to apply that XML file to real time face detection. We just need to import the file, pre-process our images (or frames from real-time video stream), and then run the OpenCV object detection functions.
+\par We load the trained classifier, load our image, and then the object detect functions returns the position of any found faces as a Rectangle with identifiers (x, y, width, height). With the returned positions, we can draw a basic rectangle of the detected facial regions or even perhaps take it a step further and apply Daft Punk masks to any detected faces.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{richb.jpg}
+	\caption{Sample input image to the classification}
+    \label{richb}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45\textwidth]{richb_face_detected.png}
+	\caption{Detected faces from the image of Figure \ref{richb} using the trained Frontal Face HAAR classifier}
+    \label{richb-face-detected}
+\end{figure}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{daft_punk_masks.png}
+	\caption{Sample application of facial recognition: scale-invariant Daft Punk masks applied to detected facial regions in real-time}
+    \label{daft-punk-masks}
+\end{figure}
+
+
+\subsection{GPU Parallelization and CUDA Implementation}
+The CUDA implementation in OpenCV's object detection framework takes advantage of the inherent parallelization available in pre-processing the images and traversing all of the image sub-windows.
+\par Unlike previously with the edge detection and motion detection, where there is no singularly accepted CUDA implementation of the aforementioned algorithms, with facial recognition, OpenCV's library has been heavily optimized over the years to provide that functionality.
+\par It would an interesting case study then to abstract the functionalities of their object detection libraries, and compare the speedups attained from using a heavily optimized 3rd party library against the speedups which we obtained from programs written by us from scratch.
+\par OpenCV's CUDA implementation is similar to its serial CPU implementation, except that the cascade classifier is loaded in a CUDA optimized format, and the images are loaded and processed in CUDA-optimized matrices formats created by OpenCV. 
+
+
 \section{GPU Speedup Results}
-Our code for separable convolution, computation of the image's gradient magnitude and angle, non-maximum suppression and selective thresholding, and computation of the thresholded difference and spatial difference density matrices has both serial CPU and parallel CUDA implementations. Here, we present speedup results for each of these procedures on various image sizes obtained on a system with the following hardware:
+\label{results}
+Our code for separable convolution, computation of the image's gradient magnitude and angle, non-maximum suppression and selective thresholding, and computation of the thresholded difference and spatial difference density matrices has both serial CPU and parallel CUDA implementations. Both the CPU and GPU implementations of the entire facial recognition algorithm are encapsulated in an OpenCV library internally implemented with CUDA. Here, we present speedup results for each of these procedures on various image sizes obtained on a system with the following hardware:
 \begin{itemize}
 	\item Intel Core i5 4200U @ 2.6 GHz (2C, 4T)
 	\item 8 GB of DDR3 memory @ 1600 MHz
@@ -846,6 +955,30 @@ The below results reflect the speedup in the complete procedure of calculating t
     \label{motion-area-estimation-speedup-graph}
 \end{figure}
 
+\subsection{Facial Recognition}
+The below results reflect the speedup achieved using OpenCV's object detection framework.
+\begin{table}[H]
+	\small
+	\centering
+	\caption{Speedup of Facial Recongition}
+	\label{facial-recognition-speedup}
+	\begin{tabular}{llllll}
+	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
+	 $100 \times 100$ & $0.067883$ & $0.061132$ & $1.110433$ \\
+	 $500 \times 500$ & $0.226192$ & $0.094812$ & $2.385690$ \\
+	 $1000 \times 1000$ & $0.811302$ & $0.199005$ & $4.076792$ \\
+	 $2000 \times 2000$ & $2.849201$ & $0.562820$ & $5.062366$ \\
+	 $3000 \times 3000$ & $6.236422$ & $1.218879$ & $5.116523$ \\
+	 $4000 \times 4000$ & $10.794892$ & $2.142449$ & $5.038576$ \\
+	\end{tabular}
+\end{table}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.45\textwidth]{facial_recognition_speedup_graph.jpg}
+	\caption{Visualization of facial recognition speedup versus pixel count}
+    \label{facial-recognition-speedup-graph}
+\end{figure}
+
 \subsection{Real-time Motion Detection Performance}
 Our real-time motion detection implementation continuously repeats the following procedure in an infinite loop:
 \begin{enumerate}
@@ -873,14 +1006,17 @@ Table \ref{real-time-fps-statistics} shows basic statistics on the frame rate re
 \end{table}
 
 \section{Conclusion}
-Our CUDA implementation of both the edge detection and motion detection algorithms demonstrate that parallelized, GPU computation results in significant speedups compared to a serial, CPU implementation. In all benchmarked cases (separable convolution with a Gaussian filter, edge detection via non-maximum suppression and selective thresholding, and motion area estimation from a difference density map), we find that the GPU implementation, running on a mid-range graphics card, demonstrated anywhere between a 1.5x to 4.6x speedup over a relatively high-performance, overclocked CPU. Further, for each algorithm, we find that the speedup asymptotically approaches a general range as the input size increases.
+\label{conclusion}
+Our CUDA implementation of both the edge detection and motion detection algorithms demonstrate that parallelized, GPU computation results in significant speedups compared to a serial, CPU implementation. In all benchmarked cases (separable convolution with a Gaussian filter, edge detection via non-maximum suppression and selective thresholding, and motion area estimation from a difference density map), we find that the GPU implementation, running on a mid-range graphics card, demonstrated anywhere between a 1.5x to 4.6x speedup over a relatively high-performance, overclocked CPU. Furthermore, we observe a similar speedup trend when comparing existing OpenCV CPU and GPU CUDA implementations of HAAR-based facial recognition. In all cases, we find that the speedup asymptotically approaches a general range as the input size increases.
 \par It is important to note the edge case for the separable convolution algorithm on images of small input sizes (namely, near the dimensions $100 \times 100$, or $10000$ total pixels). For this case, we observe a remarkably underwhelming speedup ratio of 0.001521, suggesting that a CPU implementation is nearly 700 times as fast as a GPU implementation (Table \ref{separable-convolution-speedup}). We speculate that, because the input size is very small (especially in comparison to the larger versions of the same image, which exceed 55 million total pixels in size), the additional overhead caused by launching the GPU kernel (e.g. allocating device memory, copying the host arrays onto the device, and copying the device arrays back to the host following completion of the computation) causes the GPU code to take much longer to run than the more directly implemented CPU code. This reasoning is backed by the fact that, at a $250000$ total pixel count (a $500 \times 500$ image), the speedup ($2.306766$) is still much lower than the asymptotic value it approaches as the pixel count exceeds about 1 million ($2.932381$).
 \par However, an opposite trend appears to be in play for the speedup of the non-maximum suppression and selective thresholding algorithm (Table \ref{non-maximum-suppression-selective-thresholding-speedup}), where we observe a high speedup for low input sizes and a lower speedup for high input sizes. We speculate that this is most likely due to the overhead of running two separate parallel tasks in sequence, both of which require the same amount of memory. As a result of our implementation, not only does a large input size result in a greater percentage of the time that any thread is idle, but it also doubles the total memory footprint of the algorithm. This is evident from the significantly higher memory consumption of this procedure compared to the others; an input size of 36 million pixels nearly maxes out the 2 GB of available GPU memory, while the other algorithms consume no more than a few hundred megabytes on the largest benchmarking image we use. Despite this trend, the speedup is still greater than 1 for large input sizes, suggesting that a GPU implementation is still consistently faster than its CPU counterpart.
+\par While we were successful in exploiting the parallel architecture of GPUs to achieve significant speedups, there are still many areas in GPU computation we have yet to explore. Our CUDA code for the edge detection and motion detection are direct implementations of the algorithms (albeit parallelized on each pixel in the image). We did not attempt any degree of memory optimization beyond ensuring that no memory leaks occur on either the host or device when running the real-time program. We also did not attempt to minimize the amount of time any given GPU thread is idle; this delay (after a particular thread has finished its computation task but has not yet been assigned another computation task) is most likely the largest bottleneck in our parallel performance. Future improvements to our existing work would lie primarily in optimizing these parameters, thereby increasing performance.
+\par A future goal is exploring multi-GPU computation. Our implementation, through parallelized, is optimized to run only on a single GPU. Multi-GPU computation would add another layer of parallelism that could theoretically increase the throughput of our computation by the number of GPUs across which the work is divided. NVIDIA's existing multi-GPU computational platform is marketed as Scalable Link Interface (SLI), allowing for the simultaneous use of 2 to 4 GPUs to render real-time graphics. In context of the work we present here, a possible future goal is to explore the performance and memory efficiency gain from Split Frame Rendering (SFR), by allowing each of our parallel algorithms to operate simultaneously on a division of the input image; or Alternate Frame Rendering (AFR), to allow for the simultaneous computation on multiple sets of 2 frames.
 
 \section*{Source Code}
-The full source code for this project, including CUDA, Python, and MATLAB implementations of all of our algorithms, is open sourced and available at \texttt{https://github.com/LINKIWI/cuda-computer-vision}.
+The full source code for this project, including CUDA, Python, and MATLAB implementations of all of our algorithms, is open sourced and available at \texttt{github.com/LINKIWI/cuda-computer-vision}.
 
-\section*{Team}
+\section*{Authors}
 \begin{itemize}
 	\item \textbf{Emilio Del Vechhio}, Electrical and Computer Engineering `18
 	\item \textbf{Kevin Lin}, Electrical and Computer Engineering `18
