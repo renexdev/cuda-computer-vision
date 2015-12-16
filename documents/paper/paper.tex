@@ -47,7 +47,7 @@
 
 
 \begin{abstract}
-GPUs provide a powerful platform for parallel computations on large data inputs, namely images. In this paper, we explore a GPU-based implementation of a simplified adaptation of existing edge detection algorithms fast enough to operate on frames of a continuous video stream in real-time. We also demonstrate a practical application of edge detection--an edge-based method for motion detection estimation. Additionally, we explore the GPU-CPU speedup of existing OpenCV GPU computation libraries, namely, for facial recognition algorithms. Finally, we demonstrate the speedups as high as 10x we achieve with GPU parallelism, as compared to a reference serial CPU-based implementation.
+GPUs provide a powerful platform for parallel computations on large data inputs, namely images. In this paper, we explore a GPU-based implementation of a simplified adaptation of existing edge detection algorithms fast enough to operate on frames of a continuous video stream in real-time. We also demonstrate a practical application of edge detection--an edge-based method for motion detection estimation. Additionally, we explore the GPU-CPU speedup of existing OpenCV GPU computation libraries, namely, for facial recognition algorithms. Finally, we demonstrate speedups as high as 10x we achieve with GPU parallelism, as compared to a reference serial CPU-based implementation.
 \end{abstract}
 
 
@@ -79,12 +79,12 @@ Edge detection is the process of determining the locations of boundaries that se
 \begin{enumerate}
 	\item Reduce the amount of high-frequency noise from the image using a two-dimensional low pass filter.
 	\item Determine the two-dimensional gradient of the filtered image by applying partial derivatives in both the horizontal and vertical directions.
-	\item Classify edges by suppressing surrounding pixels in the gradient direction whose magnitude is lesser, and applying selective thresholding to a limited apron around each selected pixel.
+	\item Classify edges by accepting pixels of a minimum threshold gradient magnitude and suppressing its neighboring pixels in the gradient direction with a lesser gradient magnitude, and applying selective thresholding to a limited apron around each selected pixel.
 \end{enumerate}
 Edges correspond to the points on the image that exhibit a high gradient magnitude. The edge data from our algorithm is then used as input to our motion detection algorithm.
 
 \subsection{Separable Convolution}
-The filtering necessary in steps (1) and (2) from our algorithm above involve the convolution of a two-dimensional image and a two-dimensional kernel filter of constant width and height. A na\"{\i}ve implementation of two-dimensional convolution would require a double sum across the kernel and image for each individual pixel:
+The filtering necessary in steps (1) and (2) from our algorithm above involve the convolution of a two-dimensional image and a two-dimensional kernel filter of constant width and height. A na\"{\i}ve implementation of two-dimensional convolution would require a double sum across the convolution kernel and input image for each individual pixel in the output image:
 \begin{equation}
 	\label{2d-naive-convolution}
 	y[m, n] = x[m, n] * h[m, n] = \sum_{i = -\infty}^{\infty} \sum_{j = -\infty}^{\infty} h[i, j] x[m - i, n - j]
@@ -141,7 +141,7 @@ As detailed in later sections, we take advantage of the fast computational compl
 
 \subsection{Noise Elimination: Two-Dimensional Gaussian Filtering}
 The first task in our edge detection algorithm is denoising the input in order to reduce the amount of high-frequency content in the image by as much as possible without destroying critical information points in the image (e.g. the real edges). We filter out high-frequency noise so that random noise is not mistakenly interpreted as an edge, as edges correspond to points in the image where the gradient has an above-threshold magnitude. \par
-For example, consider the $5312 \times 2988$ pixel image (taken at a high ISO to deliberately introduce noise) of Figure \ref{noisy-image} and a plot of its grayscale intensity versus the image's spatial dimensions in Figure \ref{noisy-image-mesh}. It is clear from the mesh that there is much high-frequency noise, which can be removed with a low-pass filter.
+For example, consider the $5312 \times 2988$ pixel image (taken at a high ISO to deliberately introduce noise) of Figure \ref{noisy-image} and a plot of its grayscale intensity versus the image's spatial dimensions in Figure \ref{noisy-image-mesh}. It is clear from the mesh that there exists much high-frequency noise, which can be removed with a low-pass filter.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{noisy_image.jpg}
@@ -151,13 +151,13 @@ For example, consider the $5312 \times 2988$ pixel image (taken at a high ISO to
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{noisy_image_mesh.jpg}
-	\caption{Grayscale intensity of unfiltered noisy image at each pixel}
+	\caption{Grayscale intensity of the unfiltered noisy image of Figure \ref{noisy-image} at each pixel, visualized as a three-dimensional mesh}
     \label{noisy-image-mesh}
 \end{figure}
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{fft_noisy_image.jpg}
-	\caption{FFT magnitude of unfiltered noisy image at each pixel (log scale)}
+	\caption{FFT magnitude of the unfiltered noisy image of Figure \ref{noisy-image} at each pixel (log scale)}
     \label{noisy-image-fft}
 \end{figure}
 To low-pass filter our image, we apply a discrete Gaussian filter. Generally, a Gaussian blur kernel of size $2n + 1 \times 2n + 1$ ($\forall n \in \mathbb{Z}^+$, and with parameter $\sigma$) is given by
@@ -183,7 +183,7 @@ This kernel is implemented separably as
 		1 \\ 2 \\ 1
 	\end{bmatrix}
 \end{equation}
-\par Applying a Gaussian filter with parameters $k = 5$ and $\sigma = 5$ to the above image significantly denoises the image without sacrificing edge precision, which can be seen from the spatial intensity plot in Figure \ref{filtered-noisy-image-mesh}.
+\par Applying a Gaussian filter with parameters $k = 5$ and $\sigma = 5$ to the noisy image of Figure \ref{noisy-image} significantly denoises the image without sacrificing edge precision, which can be seen from the spatial intensity plot in Figure \ref{filtered-noisy-image-mesh}.
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{filtered_noisy_image.jpg}
@@ -193,13 +193,13 @@ This kernel is implemented separably as
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{filtered_noisy_image_mesh.jpg}
-	\caption{Grayscale intensity of Gaussian-filtered noisy image at each pixel}
+	\caption{Grayscale intensity of the Gaussian-filtered noisy image of Figure \ref{filtered-noisy-image} at each pixel, visualized as a three-dimensional mesh}
     \label{filtered-noisy-image-mesh}
 \end{figure}
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{fft_filtered_noisy_image.jpg}
-	\caption{FFT magnitude of Gaussian-filtered noisy image at each pixel (log scale)}
+	\caption{FFT magnitude of the Gaussian-filtered noisy image of Figure \ref{filtered-noisy-image} at each pixel (log scale)}
     \label{filtered-noisy-image-fft}
 \end{figure}
 
@@ -213,7 +213,7 @@ Edges in the image correspond to pixel locations at which there is a rapid chang
 	\label{gradient-angle}
 	\theta_G = \arctan{\frac{G_y}{G_x}}
 \end{equation}
-where $G_x$ and $G_y$ are the values of the partial derivatives along the $x$ and $y$ directions, respectively, at the pixel located at $(i, j)$ of the image $A$.
+where $G_x$ and $G_y$ are the values of the partial derivatives along the $x$ and $y$ directions, respectively, at the pixel located at $(i, j)$ of the image $\boldsymbol{A}$.
 $$G_x = \frac{\partial \boldsymbol{A}}{\partial x}\Bigr|_{\substack{(x, y) = (i, j)}}$$
 $$G_y = \frac{\partial \boldsymbol{A}}{\partial y}\Bigr|_{\substack{(x, y) = (i, j)}}$$
 \par A variety of different discrete differentiation operators exist to approximate the gradient of the image. The operator we choose in our implementation is the Sobel operator.
@@ -268,13 +268,13 @@ Like our Gaussian kernel, the Sobel operator (in both the $x$ and $y$ directions
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{sobel_pcb.jpg}
-	\caption{Magnitude of the gradient $||\boldsymbol{G}||$, as determined by applying a Sobel filter in both the $x$ and $y$ directions, at each pixel of the Gaussian-filtered original image with parameters $k = 5$ and $\sigma = 5$}
+	\caption{Magnitude of the gradient $||\boldsymbol{G}||$ as determined by applying a Sobel filter in both the $x$ and $y$ directions to the Gaussian-filtered original image of Figure \ref{pcb-original} with parameters $k = 5$ and $\sigma = 5$}
     \label{sobel-pcb}
 \end{figure}
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{sobel_pcb_mesh.jpg}
-	\caption{Gradient of Figure \ref{sobel-pcb} visualized as a three-dimensional mesh}
+	\caption{Gradient magnitude of Figure \ref{sobel-pcb} visualized as a three-dimensional mesh}
     \label{sobel-pcb-mesh}
 \end{figure}
 
@@ -292,7 +292,7 @@ More precisely, a pixel at $(i, j)$ with gradient magnitude $G_{i, j} > t_l$ and
 	\item $(\frac{\pi}{3} < \theta < \frac{2 \pi}{3} \vee -\frac{2 \pi}{3} < \theta < -\frac{\pi}{3}) \wedge G_{i, j} > G_{i \pm 1, j}$
 	\item $(\frac{2 \pi}{3} < \theta < \frac{5 \pi}{6} \vee -\frac{\pi}{3} < \theta < -\frac{\pi}{6}) \wedge G_{i, j} > G_{i \pm 1, \mp j}$
 \end{itemize}
-The selective thresholding technique extends on the procedure of non-maximum suppression. For any pixel that passes criteria (2) (maximized, relative to the neighboring pixels, along the gradient direction), consider an $\alpha$ x $\alpha$ box around the pixel. If any pixel within the box exceeds the low threshold $t_l$, then the pixel is accepted. This technique attempts to catch pixels that might ``connect" ridge pixels identified by criteria (2) but fail to satisfy the criterion themselves, in order to create more continuous edge lines.
+\par The selective thresholding technique extends on the procedure of non-maximum suppression. For any pixel that passes criteria (2) (maximized, relative to the neighboring pixels, along the gradient direction), consider an $\alpha \times \alpha$ box around the pixel. If any pixel within the box exceeds the low threshold $t_l$, then the pixel is accepted. This technique attempts to catch pixels that might ``connect" ridge pixels identified by criteria (2) but fail to satisfy the criterion themselves, in order to create more continuous edge lines.
 \begin{figure}[]
 	\centering
 	\includegraphics[width=0.45\textwidth]{pcb_edges.jpg}
@@ -335,7 +335,7 @@ The selective thresholding technique extends on the procedure of non-maximum sup
 \end{algorithm}
 
 \subsection{GPU Parallelization and CUDA Implementation}
-We begin with a parallelized implementation of separable convolution, since the same convolution operation is applied for both the initial Gaussian low pass filter and the edge detecting Sobel filter. Our parallel implementation involves first independently computing the convolution with the horizontal filter ($h_2$ in Equation \eqref{separable-convolution-definition}), then convolving that result with the vertical filter $h_1$. In computing the output $y[m, n]$ at every index $(i, j)$, we launch a kernel with 16 threads per block, where the total number of blocks along one dimension is equal to the size of that dimension divided by 16. For our 5312 x 2988 test images, this corresponds to 332 blocks in the horizontal direction and 186 blocks in the vertical direction, each with 16 computational threads.
+We begin with a parallelized implementation of separable convolution, since the same convolution operation is applied for both the initial Gaussian low pass filter and the edge detecting Sobel filter. Our parallel implementation involves first independently computing the convolution with the horizontal filter ($h_2$ in Equation \eqref{separable-convolution-definition}), then convolving that result with the vertical filter $h_1$. In computing the output $y[m, n]$ at every index $(i, j)$, we launch a kernel with 16 threads per block, where the total number of blocks along one dimension is equal to the size of that dimension divided by 16. For our 5312 $\times$ 2988 test images, this corresponds to 332 blocks in the horizontal direction and 186 blocks in the vertical direction, each with 16 computational threads.
 \begin{lstlisting}[
 	caption=Grid configuration for the separable convolution device kernel,
 	label=grid-configuration,
@@ -393,7 +393,7 @@ __global__ void vertical_convolve(int *d_out, int *x, int *h, int x_width, int x
     __syncthreads();
 }
 \end{lstlisting}
-\par The first stage of our edge detection algorithm uses the separable convolution GPU implementation above to apply a Gaussian low-pass filter in Equation \ref{gaussian-filter} to remove high-frequency noise from the image that might be falsely labeled as an edge. Then, the same separable convolution kernel is used to apply the Sobel edge filter of Equations \ref{horizontal-sobel-filter} and \ref{vertical-sobel-filter} to the Gaussian low pass-filtered image in both the horizontal and vertical directions to approximate the horizontal and vertical partial derivatives, respectively. In order to reduce redundancy in computation, the final stage of non-maximum suppression and selective thresholding is separated into two tasks, each of which is implemented in parallel:
+\par The first stage of our edge detection algorithm uses the separable convolution GPU kernel above to apply the Gaussian low-pass filter of Equation \ref{gaussian-filter} to remove high-frequency noise from the image that might be falsely labeled as an edge. Then, the same separable convolution kernel is used to apply the Sobel edge filter of Equations \ref{horizontal-sobel-filter} and \ref{vertical-sobel-filter} to the Gaussian low pass-filtered image in both the horizontal and vertical directions to approximate the horizontal and vertical partial derivatives, respectively. In order to reduce redundancy in computation, the final stage of non-maximum suppression and selective thresholding is separated into two tasks, each of which is implemented in parallel:
 \begin{enumerate}
 	\item Calculate the gradient magnitude matrix $\boldsymbol{G}$ and gradient angle matrix $\boldsymbol{\theta}$
 	\item Implement Algorithm \ref{non-maximum-suppression-selective-thresholding-algorithm} with the inputs $\boldsymbol{G}$ and $\boldsymbol{\theta}$ calculated above
@@ -411,9 +411,9 @@ __global__ void gradient_magnitude_and_direction(
 		int *g_x,
 		int *g_y
 	) {
-	const int r = blockIdx.y * blockDim.y + threadIdx.y;
-	const int c = blockIdx.x * blockDim.x + threadIdx.x;
-	const int i = r * (input_width + 2) + c;
+	int r = blockIdx.y * blockDim.y + threadIdx.y;
+	int c = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = r * (input_width + 2) + c;
 	
 	dev_magnitude_output[i] = sqrt(pow((double)g_x[i], 2) + pow((double)g_y[i], 2));
 	dev_angle_output[i] = atan2((double)g_y[i], (double)g_x[i]);
@@ -581,11 +581,11 @@ Then, for each location $(i, j)$ in $\boldsymbol{D}_0$, a thresholded difference
 \end{algorithm}
 
 \subsection{Motion Area Estimation via a Spatial Difference Density Map}
-The difference matrix $\boldsymbol{D}$ determined with Algorithm \ref{difference-matrix-algorithm} is effectively a maximally precise estimate of motion area (e.g., to the resolution of a single pixel, since $\boldsymbol{D}$ is computed on a pixel-by-pixel basis). However, in practice, it is more useful to consider general regions of the image around which motion exists. For this reason, we build a density map of the matrix $\boldsymbol{D}$ using equal-sized rectangular sections of the input image that approximates the density of the difference per unit area (units pixels$^2$). Thus, the original $M \times N$ difference matrix $\boldsymbol{D}$ is reduced to a matrix $\boldsymbol{D}'$ of size $m \times n$ such that
+The difference matrix $\boldsymbol{D}$ determined with Algorithm \ref{difference-matrix-algorithm} is effectively a maximally precise estimate of motion area (e.g., to the resolution of a single pixel, since $\boldsymbol{D}$ is computed on a pixel-by-pixel basis). However, in practice, it is more useful to consider general regions of the image around which motion exists. For this reason, we build a density map of the matrix $\boldsymbol{D}$ using equal-sized rectangular sections of the input image that approximates the density of the difference per unit area. Thus, the original $M \times N$ difference matrix $\boldsymbol{D}$ is reduced to a matrix $\boldsymbol{D}'$ of size $m \times n$ such that
 $$M = k_1 m$$
 $$N = k_2 n$$
-where $k_1, k_2 \in \mathbb{Z}$. Intuitively, choosing a higher $k_1$ and $k_2$ will result in a higher resolution over which the density is evaluated. Selection of $k_1$ and $k_2$ should depend on how large of a region over which motion should be estimated. The upper limits of $k_1$ and $k_2$ are $M$ and $N$, respectively, at which point $\boldsymbol{D}'$ = $\boldsymbol{D}$. Each index $(m, n)$ in $\boldsymbol{D}'$ corresponds to the upper-left corner of a rectangular section of $\boldsymbol{A}$ whose width is $\frac{M}{m}$ and height is $\frac{N}{n}$.
-\par Regions of motion are the rectangular sections whose density exceeds a user-defined threshold $\Gamma$, denoting the number of difference pixels over the total number of pixels considered in the rectangular section. For each such region $\boldsymbol{R}$ in $\boldsymbol{A}$ of size $\frac{M}{m}$ x $\frac{N}{n}$,
+where $k_1, k_2 \in \mathbb{Z}^+$. Intuitively, choosing a higher $k_1$ and $k_2$ will result in a higher resolution over which the density is evaluated. Selection of $k_1$ and $k_2$ should depend on the desired size of the region over which motion should be estimated. The upper limits of $k_1$ and $k_2$ are $M$ and $N$, respectively, at which point $\boldsymbol{D}'$ = $\boldsymbol{D}$. Each index $(m, n)$ in $\boldsymbol{D}'$ corresponds to the upper-left corner of a rectangular section of $\boldsymbol{A}$ whose width is $\frac{M}{m}$ and height is $\frac{N}{n}$.
+\par Regions of motion are the rectangular sections whose density exceeds a user-defined threshold $\Gamma$, denoting the number of difference pixels over the total number of pixels considered in the rectangular section. For each such region $\boldsymbol{R}$ in $\boldsymbol{A}$ of size $\frac{M}{m} \times \frac{N}{n}$,
 $$\textnormal{DifferenceDensity}(\boldsymbol{R}) = \frac{\textnormal{number of pixel differences in } \boldsymbol{R}}{\textnormal{number of pixels in } \boldsymbol{R}}$$
 \[
 \boldsymbol{D}' =
@@ -675,7 +675,7 @@ __global__ void difference_filter(
     }
 }
 \end{lstlisting}
-The construction of the difference density matrix as in Algorithm \ref{difference-density-matrix-algorithm} is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}'$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}'$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
+The construction of the difference density matrix as in Algorithm \ref{difference-density-matrix-algorithm} is parallelized by considering the value of the thresholded difference matrix $\boldsymbol{D}$ at each index $(r, c)$, mapping that index to the appropriate index in the difference density matrix $(i, j)$ where $i < m \wedge j < n$, then adding to the value of the array at $(i, j)$ at each encounter of a difference pixel in $\boldsymbol{D}$. Our CUDA implementation therefore relies on the fact that the density array is initialized to 0 before the kernel is launched; this is accomplished in practice with a \texttt{calloc} operation on the host, followed by copying that array to GPU memory.
 \begin{lstlisting}[
 	caption=GPU computation of the difference density matrix,
 	label=difference-density-implementation,
@@ -762,7 +762,7 @@ def detect_motion(e1, e2):
 
 \section{Facial Recognition Algorithm}
 \label{facial-recognition-section}
-Our facial recognition implementation is based off of the HAAR features-based cascade classifiers method proposed by Viola-Jones in 2001. It's split into two phases: training and detection. The algorithm is as follows:
+Our facial recognition implementation is based off the HAAR feature-based cascade classifiers method proposed by Viola-Jones in 2001. It's split into two phases: training and detection. The algorithm is as follows:
 \begin{enumerate}
 	\item Extract HAAR features of a face from a set of positive and negative training images. 
 	\item Use adaptive boosting machine learning to train a multi-stage, or cascade, classifier against positive and negative HAAR features. 
@@ -778,25 +778,25 @@ In mathematics analysis, Haar wavelets are a sequence of rescaled, square-like f
 	\caption{Example application of HAAR features on a face}
     \label{haar-features-face-example}
 \end{figure}
-\par Each feature is obtained by comparing the pixel intensity in the white boxes against the pixel intensity in the dark boxes for a wide sample of sub-windows across the entire image. A 24x24 pixel image window can produce over 160,000 features that need to be classified, in some sense, “oversampling” the face.
+\par Each feature is obtained by comparing the pixel intensity in the white boxes against the pixel intensity in the dark boxes for a wide sample of sub-windows across the entire image. A 24 $\times$ 24 pixel image window can produce over 160,000 features that need to be classified--in some sense, “oversampling” the face.
 \par The rectangle features can be computed by splitting the image into sub-windows called integral images. An integral image at a point $i'(x, y)$ is the sum of all pixels to the top and to the left of that point.
 \[
 i'(x, y) = \sum_{m \leq x, n \leq y}{i(m, n)}
 \]
+Since an integral image includes all previously-computed integral images contained in its window, in the image of Figure \ref{integral-image-face}, the region A can be computed as
+\[
+A = i'(4) + i'(1) - i'(2) - i'(3)
+\]
+Any such rectangular sum can be computed using four array references.
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=0.45\textwidth]{integral_image.png}
 	\caption{Integral image on a face}
     \label{integral-image-face}
 \end{figure}
-Since an integral image includes all previously-computed integral images contained in its window, in the image of Figure \ref{integral-image-face}, the region A can be computed as
-\[
-A = i'(4) + i'(1) - i'(2) - i'(3)
-\]
-Any such rectangular sum can be computed using four array references.
 
 \subsection{Cascade Classifier Training}
-It's far too resource intensive to evaluate over 160,000 images for each 24x24 pixel window. However, we can take advantage of the fact that only a very small fraction of extracted sub-windows in an uncropped image will correspond to accurate facial features. To do so, we use a cascaded variation of the Adaptive Boosting (or AdaBoost) machine learning algorithm. AdaBoost aims to determine the optimal binary threshold of HAAR features which best separate negative and positive samples.
+It's far too resource intensive to evaluate over 160,000 images for each 24 $\times$ 24 pixel window. However, we can take advantage of the fact that only a very small fraction of extracted sub-windows in an uncropped image will correspond to accurate facial features. To do so, we use a cascaded variation of the Adaptive Boosting (or AdaBoost) machine learning algorithm. AdaBoost aims to determine the optimal binary threshold of HAAR features which best separate negative and positive samples.
 \begin{algorithm}[]
 	\smaller
 	\label{adaboost-classifier-algorithm}
@@ -841,7 +841,7 @@ It's far too resource intensive to evaluate over 160,000 images for each 24x24 p
 
 \subsection{Application of Classsifier to Facial Recognition}
 The final output of the cascade classifier training is a classifier XML file that contains the results of the training. OpenCV then provides an easy module to apply that XML file to real time face detection. We just need to import the file, pre-process our images (or frames from real-time video stream), and then run the OpenCV object detection functions.
-\par We load the trained classifier, load our image, and then the object detect functions returns the position of any found faces as a Rectangle with identifiers (x, y, width, height). With the returned positions, we can draw a basic rectangle of the detected facial regions or even perhaps take it a step further and apply Daft Punk masks to any detected faces.
+\par We load the trained classifier, load our image, and then the object detect functions returns the position of any found faces as a Rectangle with identifiers (x, y, width, height). With the returned positions, we can draw a basic rectangle of the detected facial regions or even perhaps take it a step further and apply Daft Punk masks to any detected faces (Figure \ref{daft-punk-masks}).
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.45\textwidth]{richb.jpg}
@@ -889,7 +889,7 @@ faces = face_cascade.detectMultiScale(
 \subsection{GPU Parallelization and CUDA Implementation}
 The CUDA implementation in OpenCV's object detection framework takes advantage of the inherent parallelization available in pre-processing the images and traversing all of the image sub-windows.
 \par Unlike previously with the edge detection and motion detection, where there is no singularly accepted CUDA implementation of the aforementioned algorithms, with facial recognition, OpenCV's library has been heavily optimized over the years to provide that functionality.
-\par It would an interesting case study then to abstract the functionalities of their object detection libraries, and compare the speedups attained from using a heavily optimized 3rd party library against the speedups which we obtained from programs written by us from scratch.
+\par It would an interesting case study then to abstract the functionalities of their object detection libraries, and compare the speedups attained from using a heavily optimized third party library against the speedups which we obtained from programs written by us from scratch.
 \par OpenCV's CUDA implementation is similar to its serial CPU implementation, except that the cascade classifier is loaded in a CUDA optimized format, and the images are loaded and processed in CUDA-optimized matrices formats created by OpenCV. 
 
 
