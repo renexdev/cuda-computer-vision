@@ -7,10 +7,12 @@ import numpy
 cascade = 'haarcascade_frontalface_default.xml'
 faceCascade = cv2.CascadeClassifier(cascade)
 
-image1 = os.path.join(os.path.dirname(__file__), 'birthday.jpg')
+image1 = 'RichB.jpg'
 
 daftPunk = cv2.imread('DaftPunk.png', cv2.IMREAD_UNCHANGED)
 
+# train classifiers
+# apply a daft punk mask
 
 def faceDetectWebcam():
 
@@ -46,9 +48,6 @@ def faceDetectWebcam():
     cv2.destroyAllWindows()
 
 
-# train classifiers
-# train to recognize rich b's face, and apply a daft punk mask
-
 def faceDetectTiming(images):
     image = cv2.imread(images, cv2.IMREAD_UNCHANGED)
     start_time = dt.datetime.now()
@@ -68,11 +67,7 @@ def faceDetectTiming(images):
     print("detected in:" + " " + str(time) + "ms")
 
     for (x, y, w, h) in face:
-        # recog = cv2.resize(daftPunk, (w, h), interpolation=cv2.INTER_AREA)
-        # print(recog.shape, recog.shape[0], recog.shape[1], w, h)
-        # for c in range(0,3):
-        #   image[y:y+h, x:x+w, c] = recog[:,:,c] * (recog[:,:,3]/255.0) + image[y:y+h, x:x+w, c] * (1.0 - recog[:,:,3]/255.0)
-        # image[y:y+h, x:x+w] = recog
+ 
         cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
     cv2.imshow("Faces found", image)
@@ -83,5 +78,5 @@ def faceDetectTiming(images):
         cv2.destroyAllWindows()
 
 
-faceDetectTiming(image1)
-#faceDetectWebcam()
+#faceDetectTiming(image1)
+faceDetectWebcam()
