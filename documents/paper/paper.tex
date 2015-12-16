@@ -493,8 +493,11 @@ The Python OpenCV library exposes an API for the entire Canny edge detection alg
 	label=python-edge-detection-implementation,
 	language=Python
 ]
+import cv2
+
 LOW_THRESHOLD = 100
 HIGH_THRESHOLD = 200
+
 edges = cv2.Canny(img, LOW_THRESHOLD, HIGH_THRESHOLD)
 \end{lstlisting}
 
@@ -857,6 +860,30 @@ The final output of the cascade classifier training is a classifier XML file tha
 	\caption{Sample application of facial recognition: scale-invariant Daft Punk masks applied to detected facial regions in real-time}
     \label{daft-punk-masks}
 \end{figure}
+
+
+\subsection{High-Level Python Implementation}
+We again provide sample Python code to demonstrate how the facial recognition algorithm would be implemented on a high level, with the details of implementation abstracted out. The Python OpenCV library exposes an API for facial recognition via a cascade classifier, as shown in Listing \ref{python-facial-recognition-implementation}.
+\begin{lstlisting}[
+	caption=Python implementation of facial recognition with OpenCV,
+	label=python-facial-recognition-implementation,
+	language=Python
+]
+import cv2
+
+IMAGE = 'richb.jpg'
+CASCADE_DATA = 'haarcascade_frontalface_default.xml'
+
+face_cascade = cv2.CascadeClassifier(CASCADE_DATA)
+faces = face_cascade.detectMultiScale(
+	cv2.imread(IMAGE, cv2.IMREAD_GRAYSCALE),
+	scaleFactor=1.1,
+	minNeighbors=5,
+	minSize=(30, 30),
+	flags=cv2.CASCADE_SCALE_IMAGE,
+)
+# faces now contains tuples indicating the location and size of each detected face in the image
+\end{lstlisting}
 
 
 \subsection{GPU Parallelization and CUDA Implementation}
