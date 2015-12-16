@@ -53,7 +53,7 @@ GPUs provide a powerful platform for parallel computations on large data inputs,
 
 \section{Introduction}
 Graphics processing units (GPUs) are rapidly gaining popularity as a platform for parallelized computations on massive sets of data. Since much of the computations in image processing and computer vision are easily parallelized, graphics operations on GPUs achieve significant speedups compared to those done on their serial, CPU counterparts. Further, SDKs like the NVIDIA CUDA framework provide developers easy APIs to take advantage of the parallel computing power of GPUs. We take full advantage of the computational benefits of GPUs by implementing edge detection and motion detection algorithms in CUDA C, and making use of existing CUDA libraries for our facial recognition algorithm.
-\par In this paper, we first detail the theory for our edge detection, motion detection, and facial recognition algorithms in Sections \ref{edge-detection-section}, \ref{motion-detection-section}, and \ref{facial-recognition-section}, respectively. At the end of Sections \ref{edge-detection-section} and \ref{motion-detection-section}, we describe our GPU code implementation of these algorithms with NVIDIA CUDA. At the end of Section \ref{facial-recognition-section}, we comment on the performance we achieve with a prebuilt, CUDA-based OpenCV GPU computation library, as opposed to that we achieve with a custom CUDA implementation as in Sections \ref{edge-detection-section} and \ref{motion-detection-section}. We present speedup results achieved with our CUDA implementation with respect to a reference serial, CPU implmentation in Section \ref{results}. Finally, we conclude in Section \ref{conclusion}.
+\par In this paper, we first detail the theory for our edge detection, motion detection, and facial recognition algorithms in Sections \ref{edge-detection-section}, \ref{motion-detection-section}, and \ref{facial-recognition-section}, respectively. At the end of Sections \ref{edge-detection-section} and \ref{motion-detection-section}, we describe our GPU code implementation of these algorithms with NVIDIA CUDA. At the end of Section \ref{facial-recognition-section}, we comment on the performance we achieve with a pre-built, CUDA-based OpenCV GPU computation library, as opposed to that we achieve with a custom CUDA implementation as in Sections \ref{edge-detection-section} and \ref{motion-detection-section}. We present speedup results achieved with our CUDA implementation with respect to a reference serial, CPU implementation in Section \ref{results}. Finally, we conclude in Section \ref{conclusion}.
 
 
 \subsection{GPU Computation and the NVIDIA CUDA Framework}
@@ -292,7 +292,7 @@ More precisely, a pixel at $(i, j)$ with gradient magnitude $G_{i, j} > t_l$ and
 	\item $(\frac{\pi}{3} < \theta < \frac{2 \pi}{3} \vee -\frac{2 \pi}{3} < \theta < -\frac{\pi}{3}) \wedge G_{i, j} > G_{i \pm 1, j}$
 	\item $(\frac{2 \pi}{3} < \theta < \frac{5 \pi}{6} \vee -\frac{\pi}{3} < \theta < -\frac{\pi}{6}) \wedge G_{i, j} > G_{i \pm 1, \mp j}$
 \end{itemize}
-The selective thresholding technique extends on the procedure of non-maximum suppression. For any pixel that passes crtiteria (2) (maximized, relative to the neighboring pixels, along the gradient direction), consider an $\alpha$ x $\alpha$ box around the pixel. If any pixel within the box exceeds the low threshold $t_l$, then the pixel is accepted. This technique attempts to catch pixels that might ``connect" ridge pixels identified by criteria (2) but fail to satify the criterion themselves, in order to create more continuous edge lines.
+The selective thresholding technique extends on the procedure of non-maximum suppression. For any pixel that passes criteria (2) (maximized, relative to the neighboring pixels, along the gradient direction), consider an $\alpha$ x $\alpha$ box around the pixel. If any pixel within the box exceeds the low threshold $t_l$, then the pixel is accepted. This technique attempts to catch pixels that might ``connect" ridge pixels identified by criteria (2) but fail to satisfy the criterion themselves, in order to create more continuous edge lines.
 \begin{figure}[]
 	\centering
 	\includegraphics[width=0.45\textwidth]{pcb_edges.jpg}
@@ -960,7 +960,7 @@ The below results reflect the speedup achieved using OpenCV's object detection f
 \begin{table}[H]
 	\small
 	\centering
-	\caption{Speedup of Facial Recongition}
+	\caption{Speedup of Facial Recognition}
 	\label{facial-recognition-speedup}
 	\begin{tabular}{llllll}
 	 Image dimensions & CPU time (s) & GPU time (s) & Speedup \\
